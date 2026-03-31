@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { Project } from "@/types";
 
 function getPct(project: Project) {
-  // Try versions first
   if (project.versions && project.versions.length > 0) {
     const allPhases = project.versions.flatMap(v => v.phases || []);
     if (allPhases.length > 0) {
@@ -13,25 +13,26 @@ function getPct(project: Project) {
       return Math.round((done / allPhases.length) * 100);
     }
   }
-  // Fall back to legacy phases
   if (!project.phases || project.phases.length === 0) return 0;
-  const done = project.phases.filter((p) => p.completed).length;
+  const done = project.phases.filter(p => p.completed).length;
   return Math.round((done / project.phases.length) * 100);
 }
 
 export default function DashboardClient({ projects }: { projects: Project[] }) {
-  const [active, setActive] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filtered = projects.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.description?.toLowerCase().includes(search.toLowerCase()) ||
+    p.tech_stack?.some(t => t.toLowerCase().includes(search.toLowerCase()))
+  );
 
   const total = projects.length;
-  const launched = projects.filter((p) => p.status === "launched").length;
-  const building = projects.filter((p) => p.status === "building").length;
-  const concept = projects.filter((p) => p.status === "concept").length;
-  const avgPct = total
-    ? Math.round(projects.reduce((s, p) => s + getPct(p), 0) / total)
-    : 0;
-  const blocked = projects.filter(
-    (p) => p.blockers && p.blockers.trim().length > 0
-  ).length;
+  const launched = projects.filter(p => p.status === "launched").length;
+  const building = projects.filter(p => p.status === "building").length;
+  const concept = projects.filter(p => p.status === "concept").length;
+  const avgPct = total ? Math.round(projects.reduce((s, p) => s + getPct(p), 0) / total) : 0;
+  const blocked = projects.filter(p => p.blockers && p.blockers.trim().length > 0).length;
 
   return (
     <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -47,19 +48,52 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
           <div style={{ width: "8px", height: "8px", background: "var(--cyan)", borderRadius: "50%", animation: "blink 2s infinite" }} />
           FORGE
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px" }}>
             <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS ·{" "}
-            <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{avgPct}%</span> AVG COMPLETE
+            <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{avgPct}%</span> AVG
           </span>
+          {/* SEARCH */}
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search projects..."
+            style={{
+              background: "var(--surface)", border: "1px solid var(--border)",
+              color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "11px",
+              padding: "6px 12px", borderRadius: "2px", outline: "none", width: "180px",
+              transition: "border-color 0.2s",
+            }}
+            onFocus={e => e.target.style.borderColor = "rgba(0,212,255,0.4)"}
+            onBlur={e => e.target.style.borderColor = "var(--border)"}
+          />
           <Link href="/projects/new" style={{
             padding: "7px 16px", background: "var(--cyan-dim)",
             border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
             fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
-            borderRadius: "2px", textDecoration: "none", transition: "all 0.2s",
+            borderRadius: "2px", textDecoration: "none",
           }}>
-            + NEW PROJECT
+            + NEW
           </Link>
+          <button
+            onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+            style={{
+              padding: "7px 16px", background: "transparent",
+              border: "1px solid var(--border)", color: "var(--muted)",
+              fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+              borderRadius: "2px", cursor: "pointer", transition: "all 0.2s",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = "var(--red)";
+              e.currentTarget.style.color = "var(--red)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = "var(--border)";
+              e.currentTarget.style.color = "var(--muted)";
+            }}
+          >
+            LOGOUT
+          </button>
         </div>
       </header>
 
@@ -67,7 +101,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
 
         {/* SIDEBAR */}
         <nav style={{
-          width: "260px", minWidth: "260px", borderRight: "1px solid var(--border)",
+          width: "240px", minWidth: "240px", borderRight: "1px solid var(--border)",
           padding: "24px 0", position: "sticky", top: "56px",
           height: "calc(100vh - 56px)", overflowY: "auto",
         }}>
@@ -76,30 +110,35 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
           </div>
           {projects.length === 0 ? (
             <div style={{ padding: "20px", color: "var(--muted)", fontSize: "11px", lineHeight: 1.8 }}>
-              No projects yet.<br />Click + NEW PROJECT to start.
+              No projects yet.
             </div>
           ) : (
-            projects.map((p) => {
+            filtered.map(p => {
               const pct = getPct(p);
               return (
-                <div
-                  key={p.id}
-                  onClick={() => setActive(p.id)}
-                  style={{
+                <Link key={p.id} href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
+                  <div style={{
                     padding: "10px 20px", cursor: "pointer", display: "flex",
                     alignItems: "center", gap: "10px", transition: "all 0.15s",
-                    borderLeft: active === p.id ? "2px solid var(--cyan)" : "2px solid transparent",
-                    background: active === p.id ? "var(--cyan-dim)" : "transparent",
-                    position: "relative",
+                    borderLeft: "2px solid transparent",
                   }}
-                >
-                  <span style={{ fontFamily: "var(--font-syne)", fontSize: "13px", fontWeight: 600, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {p.name}
-                  </span>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: pct === 100 ? "var(--green)" : "var(--cyan)" }}>
-                    {pct}%
-                  </span>
-                </div>
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "var(--cyan-dim)";
+                      e.currentTarget.style.borderLeftColor = "rgba(0,212,255,0.3)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.borderLeftColor = "transparent";
+                    }}
+                  >
+                    <span style={{ fontFamily: "var(--font-syne)", fontSize: "13px", fontWeight: 600, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--text)" }}>
+                      {p.name}
+                    </span>
+                    <span style={{ fontSize: "10px", fontWeight: 600, color: pct === 100 ? "var(--green)" : "var(--cyan)" }}>
+                      {pct}%
+                    </span>
+                  </div>
+                </Link>
               );
             })
           )}
@@ -116,7 +155,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
               { label: "Building", value: building, color: "var(--amber)" },
               { label: "Concept", value: concept, color: "var(--purple)" },
               { label: "Blocked", value: blocked, color: "var(--red)" },
-            ].map((stat) => (
+            ].map(stat => (
               <div key={stat.label} style={{
                 background: "var(--surface)", border: "1px solid var(--border)",
                 borderRadius: "4px", padding: "16px 20px", position: "relative", overflow: "hidden",
@@ -132,25 +171,35 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             ))}
           </div>
 
+          {/* SEARCH RESULTS INFO */}
+          {search && (
+            <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "16px", letterSpacing: "1px" }}>
+              {filtered.length} result{filtered.length !== 1 ? "s" : ""} for "{search}"
+            </div>
+          )}
+
           {/* PROJECT GRID */}
-          {projects.length === 0 ? (
+          {filtered.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "300px", color: "var(--muted)", textAlign: "center", gap: "12px" }}>
               <div style={{ fontSize: "40px", opacity: 0.3 }}>📂</div>
-              <p style={{ fontSize: "12px", lineHeight: 1.7 }}>No projects yet.<br />Hit + NEW PROJECT to get started.</p>
+              <p style={{ fontSize: "12px", lineHeight: 1.7 }}>
+                {search ? `No projects match "${search}"` : "No projects yet. Hit + NEW to get started."}
+              </p>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
-              {projects.map((p) => {
+              {filtered.map(p => {
                 const pct = getPct(p);
                 return (
                   <Link key={p.id} href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
-                    <div style={{
-                      background: "var(--surface)", border: "1px solid var(--border)",
-                      borderRadius: "4px", padding: "20px", cursor: "pointer",
-                      transition: "all 0.2s", position: "relative", overflow: "hidden",
-                    }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border2)")}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                    <div
+                      style={{
+                        background: "var(--surface)", border: "1px solid var(--border)",
+                        borderRadius: "4px", padding: "20px", cursor: "pointer",
+                        transition: "all 0.2s", position: "relative", overflow: "hidden",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "var(--border2)"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
                     >
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: "linear-gradient(90deg, var(--cyan), var(--purple))" }} />
                       <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, marginBottom: "6px", color: "var(--text)" }}>
@@ -168,14 +217,14 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", justifyContent: "flex-end" }}>
                           {(p.tech_stack || []).slice(0, 3).map((tech, i) => (
-                            <span key={i} style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "2px", letterSpacing: "0.5px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.15)", color: "var(--cyan)" }}>
+                            <span key={i} style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "2px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.15)", color: "var(--cyan)" }}>
                               {tech}
                             </span>
                           ))}
                         </div>
                       </div>
                       {p.blockers && p.blockers.trim().length > 0 && (
-                        <div style={{ marginTop: "10px", padding: "8px 10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "2px", fontSize: "10px", color: "var(--red)" }}>
+                        <div style={{ marginTop: "10px", padding: "6px 10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "2px", fontSize: "10px", color: "var(--red)" }}>
                           ⚠ Active blockers
                         </div>
                       )}
