@@ -10,18 +10,18 @@ export default function SignIn() {
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const result = await signIn("credentials", {
-      password,
-      redirect: false,
-    });
+  e.preventDefault();
+  const result = await signIn("credentials", {
+    password,
+    redirect: false,
+  });
 
-    if (result?.ok) {
-      router.push("/dashboard");
-    } else {
-      setError("Invalid password. Access denied.");
-    }
+  if (result?.ok) {
+    window.location.href = "/dashboard";
+  } else {
+    setError("Invalid password. Access denied.");
   }
+}
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-[#020817]">
