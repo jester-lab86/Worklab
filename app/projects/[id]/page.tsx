@@ -43,6 +43,19 @@ interface Task {
 function normalizeTasks(raw: (string | Task)[]): Task[] {
   return raw.map(item => {
     if (typeof item === "string") {
+      // Try to parse strings that are actually serialized JSON objects
+      try {
+        const parsed = JSON.parse(item);
+        if (parsed && typeof parsed === "object" && "description" in parsed) {
+          return {
+            id: parsed.id || uid(),
+            description: parsed.description,
+            featureId: parsed.featureId ?? null,
+            done: parsed.done ?? false,
+          };
+        }
+      } catch {}
+      // Plain string (old format)
       const done = item.startsWith("✓ ");
       return { id: uid(), description: done ? item.slice(2) : item, featureId: null, done };
     }
@@ -116,13 +129,12 @@ export default function ProjectDetail() {
   const [nameVal, setNameVal] = useState("");
   const [versionVal, setVersionVal] = useState("");
   const [progressVal, setProgressVal] = useState("");
-  const [editingTechStack, setEditingTechStack] = useState(false);
   const [newTechCategory, setNewTechCategory] = useState("");
   const [newTechItem, setNewTechItem] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
 const [editingTechStack, setEditingTechStack] = useState(false);
 const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈 ADD THIS
-const [newTechCategory, setNewTechCategory] = useState("");
+
 
   useEffect(() => {
     fetch(`/api/projects/${id}`)
