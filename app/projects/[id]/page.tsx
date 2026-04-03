@@ -162,7 +162,13 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
 
   async function patchProject(updated: Project, updatedTasks?: Task[]) {
     const tasksToSave = updatedTasks !== undefined ? updatedTasks : tasks;
-    const projectWithTasks = { ...updated, still_to_complete: tasksToSave };
+    const projectWithTasks = {
+      ...updated,
+      still_to_complete: tasksToSave,
+      tech_stack_grouped: updated.tech_stack_grouped || [],
+      versions: updated.versions || [],
+      phases: updated.phases || [],
+    };
     setProject(updated);
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
@@ -171,13 +177,19 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
     });
   }
 
-  async function saveTasks(updatedTasks: Task[]) {
+ async function saveTasks(updatedTasks: Task[]) {
     if (!project) return;
     setTasks(updatedTasks);
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...project, still_to_complete: updatedTasks }),
+      body: JSON.stringify({
+        ...project,
+        still_to_complete: updatedTasks,
+        tech_stack_grouped: project.tech_stack_grouped || [],
+        versions: project.versions || [],
+        phases: project.phases || [],
+      }),
     });
   }
 
