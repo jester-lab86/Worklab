@@ -824,7 +824,7 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
     </span>
     <button onClick={() => setEditingTaskId(editingTaskId === task.id ? null : task.id)}
       style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "10px", padding: "0 3px", flexShrink: 0 }}>✎</button>
-    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "12px", padding: "0 4px", flexShrink: 0 }}>✕</button>
+    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "12px", padding: "0 4px", flexShrink: 0 }}>✕</button>
   </div>
   {/* Inline reassign panel */}
   {editingTaskId === task.id && (
@@ -900,7 +900,7 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
     </span>
     <button onClick={() => setEditingTaskId(editingTaskId === task.id ? null : task.id)}
       style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "10px", padding: "0 3px", flexShrink: 0 }}>✎</button>
-    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "12px", padding: "0 4px", flexShrink: 0 }}>✕</button>
+    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "12px", padding: "0 4px", flexShrink: 0 }}>✕</button>
   </div>
   {editingTaskId === task.id && (
     <div style={{ padding: "8px 20px 10px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", gap: "6px", alignItems: "center" }}>
