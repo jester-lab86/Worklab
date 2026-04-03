@@ -179,16 +179,17 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
 
  async function saveTasks(updatedTasks: Task[]) {
     if (!project) return;
+    const snapshot = project;
     setTasks(updatedTasks);
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...project,
+        ...snapshot,
         still_to_complete: updatedTasks,
-        tech_stack_grouped: project.tech_stack_grouped || [],
-        versions: project.versions || [],
-        phases: project.phases || [],
+        tech_stack_grouped: snapshot.tech_stack_grouped || [],
+        versions: snapshot.versions || [],
+        phases: snapshot.phases || [],
       }),
     });
   }
