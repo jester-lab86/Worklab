@@ -120,6 +120,9 @@ export default function ProjectDetail() {
   const [newTechCategory, setNewTechCategory] = useState("");
   const [newTechItem, setNewTechItem] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+const [editingTechStack, setEditingTechStack] = useState(false);
+const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈 ADD THIS
+const [newTechCategory, setNewTechCategory] = useState("");
 
   useEffect(() => {
     fetch(`/api/projects/${id}`)
@@ -765,45 +768,70 @@ export default function ProjectDetail() {
 
                         {/* Tasks in this feature group */}
                         {fGroup.tasks.map((task, taskIdx) => (
-                          <div
-                            key={task.id}
-                            draggable
-                            onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)}
-                            onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)}
-                            onDragEnd={handleDragEnd}
-                            onDragOver={e => e.preventDefault()}
-                            style={{
-                              display: "flex", alignItems: "center", gap: "8px",
-                              padding: "7px 20px 7px 28px",
-                              borderBottom: "1px solid var(--border)",
-                              cursor: "grab",
-                              transition: "background 0.15s",
-                            }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                          >
-                            {/* Drag handle */}
-                            <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
-                            {/* Checkbox */}
-                            <div
-                              onClick={() => toggleTask(task.id)}
-                              style={{
-                                width: "15px", height: "15px", minWidth: "15px", borderRadius: "2px",
-                                border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)",
-                                background: task.done ? "var(--cyan)" : "transparent",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s",
-                              }}
-                            >
-                              {task.done ? "✓" : ""}
-                            </div>
-                            {/* Description */}
-                            <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>
-                              {task.description}
-                            </span>
-                            {/* Delete */}
-                            <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--border2)", cursor: "pointer", fontSize: "11px", padding: "0 2px", flexShrink: 0, opacity: 0.6 }}>✕</button>
-                          </div>
+                          <div key={task.id}>
+  <div
+    draggable
+    onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)}
+    onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)}
+    onDragEnd={handleDragEnd}
+    onDragOver={e => e.preventDefault()}
+    style={{
+      display: "flex", alignItems: "center", gap: "8px",
+      padding: "7px 20px 7px 28px",
+      borderBottom: editingTaskId === task.id ? "none" : "1px solid var(--border)",
+      cursor: "grab",
+      transition: "background 0.15s",
+    }}
+    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+  >
+    <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
+    <div
+      onClick={() => toggleTask(task.id)}
+      style={{
+        width: "15px", height: "15px", minWidth: "15px", borderRadius: "2px",
+        border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)",
+        background: task.done ? "var(--cyan)" : "transparent",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s",
+      }}
+    >
+      {task.done ? "✓" : ""}
+    </div>
+    <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>
+      {task.description}
+    </span>
+    <button onClick={() => setEditingTaskId(editingTaskId === task.id ? null : task.id)}
+      style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "10px", padding: "0 3px", flexShrink: 0 }}>✎</button>
+    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--border2)", cursor: "pointer", fontSize: "11px", padding: "0 2px", flexShrink: 0, opacity: 0.6 }}>✕</button>
+  </div>
+  {/* Inline reassign panel */}
+  {editingTaskId === task.id && (
+    <div style={{ padding: "8px 20px 10px 28px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", gap: "6px", alignItems: "center" }}>
+      <select
+        defaultValue={task.featureId ?? "unassigned"}
+        onChange={async e => {
+          const fid = e.target.value === "unassigned" ? null : e.target.value;
+          const updated = tasks.map(t => t.id === task.id ? { ...t, featureId: fid } : t);
+          await saveTasks(updated);
+          setEditingTaskId(null);
+        }}
+        style={{ flex: 1, background: "var(--surface3)", border: "1px solid var(--border2)", color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 8px", borderRadius: "2px", outline: "none" }}
+      >
+        <option value="unassigned">— Unassigned —</option>
+        {sortVersions(project.versions || []).map(v => (
+          <optgroup key={v.id} label={`v${v.number} — ${v.title}`}>
+            {(v.features || []).map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <button onClick={() => setEditingTaskId(null)}
+        style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", padding: "5px 8px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
+    </div>
+  )}
+</div>
                         ))}
                       </div>
                     ))}
@@ -818,41 +846,69 @@ export default function ProjectDetail() {
                       <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
                     </div>
                     {unassignedTasks.map((task, taskIdx) => (
-                      <div
-                        key={task.id}
-                        draggable
-                        onDragStart={() => handleDragStart(null, taskIdx)}
-                        onDragEnter={() => handleDragEnter(null, taskIdx)}
-                        onDragEnd={handleDragEnd}
-                        onDragOver={e => e.preventDefault()}
-                        style={{
-                          display: "flex", alignItems: "center", gap: "8px",
-                          padding: "7px 20px",
-                          borderBottom: "1px solid var(--border)",
-                          cursor: "grab",
-                        }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                      >
-                        <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
-                        <div
-                          onClick={() => toggleTask(task.id)}
-                          style={{
-                            width: "15px", height: "15px", minWidth: "15px", borderRadius: "2px",
-                            border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)",
-                            background: task.done ? "var(--cyan)" : "transparent",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s",
-                          }}
-                        >
-                          {task.done ? "✓" : ""}
-                        </div>
-                        <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>
-                          {task.description}
-                        </span>
-                        <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--border2)", cursor: "pointer", fontSize: "11px", padding: "0 2px", flexShrink: 0, opacity: 0.6 }}>✕</button>
-                      </div>
-                    ))}
+                      <div key={task.id}>
+  <div
+    draggable
+    onDragStart={() => handleDragStart(null, taskIdx)}
+    onDragEnter={() => handleDragEnter(null, taskIdx)}
+    onDragEnd={handleDragEnd}
+    onDragOver={e => e.preventDefault()}
+    style={{
+      display: "flex", alignItems: "center", gap: "8px",
+      padding: "7px 20px",
+      borderBottom: editingTaskId === task.id ? "none" : "1px solid var(--border)",
+      cursor: "grab",
+    }}
+    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+  >
+    <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
+    <div
+      onClick={() => toggleTask(task.id)}
+      style={{
+        width: "15px", height: "15px", minWidth: "15px", borderRadius: "2px",
+        border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)",
+        background: task.done ? "var(--cyan)" : "transparent",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s",
+      }}
+    >
+      {task.done ? "✓" : ""}
+    </div>
+    <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>
+      {task.description}
+    </span>
+    <button onClick={() => setEditingTaskId(editingTaskId === task.id ? null : task.id)}
+      style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "10px", padding: "0 3px", flexShrink: 0 }}>✎</button>
+    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--border2)", cursor: "pointer", fontSize: "11px", padding: "0 2px", flexShrink: 0, opacity: 0.6 }}>✕</button>
+  </div>
+  {editingTaskId === task.id && (
+    <div style={{ padding: "8px 20px 10px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", gap: "6px", alignItems: "center" }}>
+      <select
+        defaultValue="unassigned"
+        onChange={async e => {
+          const fid = e.target.value === "unassigned" ? null : e.target.value;
+          const updated = tasks.map(t => t.id === task.id ? { ...t, featureId: fid } : t);
+          await saveTasks(updated);
+          setEditingTaskId(null);
+        }}
+        style={{ flex: 1, background: "var(--surface3)", border: "1px solid var(--border2)", color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 8px", borderRadius: "2px", outline: "none" }}
+      >
+        <option value="unassigned">— Unassigned —</option>
+        {sortVersions(project.versions || []).map(v => (
+          <optgroup key={v.id} label={`v${v.number} — ${v.title}`}>
+            {(v.features || []).map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <button onClick={() => setEditingTaskId(null)}
+        style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", padding: "5px 8px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
+    </div>
+  )}
+</div>
+                ))}
                   </div>
                 )}
 
