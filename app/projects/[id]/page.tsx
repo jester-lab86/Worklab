@@ -14,6 +14,39 @@ function getPct(versions: Version[]): number {
   return Math.round((done / allPhases.length) * 100);
 }
 
+function getVersionStatus(v: Version): Version["status"] {
+  const allPhases = v.phases || [];
+  const allFeatures = v.features || [];
+  const total = allPhases.length + allFeatures.length;
+  if (total === 0) return v.status;
+  const donePhasesCount = allPhases.filter(p => p.completed).length;
+  const doneFeaturesCount = allFeatures.filter(f => f.status === "complete").length;
+  const done = donePhasesCount + doneFeaturesCount;
+  if (done === 0) return "planned";
+  if (done === total) return "complete";
+  return "in-progress";
+}
+
+function sortVersions(versions: Version[]): Version[] {
+  return [...versions].sort((a, b) => {
+    const aNum = parseFloat(a.number);
+    const bNum = parseFloat(b.number);
+    return aNum - bNum;
+  });
+}
+
+function getUncheckedPhases(versions: Version[]): { versionTitle: string; phaseId: string; versionId: string; title: string }[] {
+  const result: { versionTitle: string; phaseId: string; versionId: string; title: string }[] = [];
+  for (const v of versions) {
+    for (const p of v.phases || []) {
+      if (!p.completed) {
+        result.push({ versionTitle: `v${v.number}`, phaseId: p.id, versionId: v.id, title: p.title });
+      }
+    }
+  }
+  return result;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   concept: "var(--purple)",
   building: "var(--amber)",
@@ -429,16 +462,17 @@ export default function ProjectDetail() {
                 </div>
               )}
 
-              {(project.versions || []).map(v => {
-                const expanded = expandedVersions[v.id];
-                const vPct = v.phases?.length > 0 ? Math.round(v.phases.filter(p => p.completed).length / v.phases.length * 100) : 0;
-                const vColor = VERSION_STATUS_COLORS[v.status] || "var(--muted)";
+            {sortVersions(project.versions || []).map(v => {
+  const expanded = expandedVersions[v.id];
+  const computedStatus = getVersionStatus(v);
+  const vPct = v.phases?.length > 0 ? Math.round(v.phases.filter(p => p.completed).length / v.phases.length * 100) : 0;
+  const vColor = VERSION_STATUS_COLORS[computedStatus] || "var(--muted)";
                 return (
                   <div key={v.id} style={{ borderBottom: "1px solid var(--border)" }}>
                     <div onClick={() => toggleVersion(v.id)} style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer", background: expanded ? "var(--surface2)" : "transparent", transition: "background 0.2s" }}>
                       <span style={{ color: "var(--muted)", fontSize: "12px" }}>{expanded ? "▼" : "▶"}</span>
                       <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 700, color: "var(--text)", flex: 1 }}>v{v.number} — {v.title}</span>
-                      <span style={{ fontSize: "9px", padding: "2px 8px", borderRadius: "2px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", background: `${vColor}18`, border: `1px solid ${vColor}40`, color: vColor }}>{v.status}</span>
+                      <span style={{ fontSize: "9px", padding: "2px 8px", borderRadius: "2px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", background: `${vColor}18`, border: `1px solid ${vColor}40`, color: vColor }}>{computedStatus}</span>
                       <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 800, color: vColor, minWidth: "40px", textAlign: "right" }}>{vPct}%</span>
                     </div>
 
@@ -536,43 +570,80 @@ export default function ProjectDetail() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
             {/* STILL TO COMPLETE */}
-            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
-                <button onClick={() => setAddingTask(true)} style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>+ ADD</button>
-              </div>
-              {addingTask && (
-                <div style={{ padding: "10px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: "8px" }}>
-                  <input value={newTaskName} onChange={e => setNewTaskName(e.target.value)} onKeyDown={e => e.key === "Enter" && addTask()} placeholder="Task description..."
-                    style={{ flex: 1, background: "var(--surface3)", border: "1px solid var(--border2)", color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "12px", padding: "6px 10px", borderRadius: "2px", outline: "none" }} />
-                  <button onClick={addTask} style={{ background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>Add</button>
-                  <button onClick={() => setAddingTask(false)} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
-                </div>
-              )}
-              <div style={{ padding: "8px 20px" }}>
-                {(project.still_to_complete || []).map((item, i) => {
-                  const done = item.startsWith("✓ ");
-                  return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: i < (project.still_to_complete.length - 1) ? "1px solid var(--border)" : "none" }}>
-                      <div onClick={async () => {
-                        const updated = [...project.still_to_complete];
-                        updated[i] = done ? item.slice(2) : "✓ " + item;
-                        await patchProject({ ...project, still_to_complete: updated });
-                      }} style={{ width: "16px", height: "16px", minWidth: "16px", borderRadius: "2px", border: done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s" }}>
-                        {done ? "✓" : ""}
-                      </div>
-                      <span style={{ fontSize: "12px", color: done ? "var(--muted)" : "var(--text)", textDecoration: done ? "line-through" : "none", flex: 1 }}>
-                        {done ? item.slice(2) : item}
-                      </span>
-                      <button onClick={async () => {
-                        const updated = project.still_to_complete.filter((_, idx) => idx !== i);
-                        await patchProject({ ...project, still_to_complete: updated });
-                      }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>✕</button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+<div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
+  <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
+    <button onClick={() => setAddingTask(true)} style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>+ ADD TASK</button>
+  </div>
+
+  {addingTask && (
+    <div style={{ padding: "10px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: "8px" }}>
+      <input value={newTaskName} onChange={e => setNewTaskName(e.target.value)} onKeyDown={e => e.key === "Enter" && addTask()} placeholder="Task description..."
+        style={{ flex: 1, background: "var(--surface3)", border: "1px solid var(--border2)", color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "12px", padding: "6px 10px", borderRadius: "2px", outline: "none" }} />
+      <button onClick={addTask} style={{ background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>Add</button>
+      <button onClick={() => setAddingTask(false)} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
+    </div>
+  )}
+
+  <div style={{ padding: "8px 20px" }}>
+
+    {/* AUTO-PULLED UNCHECKED PHASES */}
+    {getUncheckedPhases(project.versions || []).map((item, i) => (
+      <div key={`phase-${item.phaseId}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+        <div
+          onClick={async () => {
+            const updated = {
+              ...project,
+              versions: project.versions.map(v =>
+                v.id === item.versionId
+                  ? { ...v, phases: v.phases.map(p => p.id === item.phaseId ? { ...p, completed: true } : p) }
+                  : v
+              ),
+            };
+            await patchProject(updated);
+          }}
+          style={{ width: "16px", height: "16px", minWidth: "16px", borderRadius: "2px", border: "2px solid var(--border2)", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s" }}
+        />
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: "12px", color: "var(--text)" }}>{item.title}</span>
+          <span style={{ fontSize: "10px", color: "var(--muted)", marginLeft: "8px" }}>{item.versionTitle}</span>
+        </div>
+      </div>
+    ))}
+
+    {/* MANUAL TASKS */}
+    {(project.still_to_complete || []).map((item, i) => {
+      const done = item.startsWith("✓ ");
+      return (
+        <div key={`task-${i}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: i < (project.still_to_complete.length - 1) ? "1px solid var(--border)" : "none" }}>
+          <div
+            onClick={async () => {
+              const updated = [...project.still_to_complete];
+              updated[i] = done ? item.slice(2) : "✓ " + item;
+              await patchProject({ ...project, still_to_complete: updated });
+            }}
+            style={{ width: "16px", height: "16px", minWidth: "16px", borderRadius: "2px", border: done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s" }}
+          >
+            {done ? "✓" : ""}
+          </div>
+          <span style={{ fontSize: "12px", color: done ? "var(--muted)" : "var(--text)", textDecoration: done ? "line-through" : "none", flex: 1 }}>
+            {done ? item.slice(2) : item}
+          </span>
+          <button onClick={async () => {
+            const updated = project.still_to_complete.filter((_, idx) => idx !== i);
+            await patchProject({ ...project, still_to_complete: updated });
+          }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>✕</button>
+        </div>
+      );
+    })}
+
+    {getUncheckedPhases(project.versions || []).length === 0 && (project.still_to_complete || []).length === 0 && (
+      <div style={{ padding: "16px 0", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>
+        All tasks complete ✓
+      </div>
+    )}
+  </div>
+</div>
 
             {/* NOTES */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>

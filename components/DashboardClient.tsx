@@ -202,9 +202,20 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                       onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
                     >
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: "linear-gradient(90deg, var(--cyan), var(--purple))" }} />
-                      <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, marginBottom: "6px", color: "var(--text)" }}>
-                        {p.name}
-                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+  <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>
+    {p.name}
+  </div>
+  <span style={{
+    fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
+    padding: "2px 8px", borderRadius: "2px", fontFamily: "var(--font-syne)",
+    background: p.status === "launched" ? "rgba(16,185,129,0.1)" : p.status === "building" ? "rgba(245,158,11,0.1)" : "rgba(139,92,246,0.1)",
+    border: p.status === "launched" ? "1px solid rgba(16,185,129,0.3)" : p.status === "building" ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(139,92,246,0.3)",
+    color: p.status === "launched" ? "var(--green)" : p.status === "building" ? "var(--amber)" : "var(--purple)",
+  }}>
+    {p.status}
+  </span>
+</div>
                       <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "14px", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                         {p.description || "No description yet."}
                       </div>
