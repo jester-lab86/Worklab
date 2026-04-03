@@ -44,7 +44,6 @@ function parseTechStack(md: string): TechCategory[] {
 function parseVersionsAndFeatures(md: string): Version[] {
   const versions: Version[] = [];
 
-  // Parse phases/roadmap section for version blocks
   const roadmapMatch = md.match(
     /##\s+(?:Phases\s*\/\s*Roadmap|Roadmap|Phases)[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i
   );
@@ -79,7 +78,6 @@ function parseVersionsAndFeatures(md: string): Version[] {
     }
   }
 
-  // Parse features section and distribute into versions
   const featuresMatch = md.match(
     /##\s+Features[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i
   );
@@ -101,12 +99,10 @@ function parseVersionsAndFeatures(md: string): Version[] {
       }
     }
 
-    // Completed features → first version
     if (versions[0]) {
       versions[0] = { ...versions[0], features: completed };
     }
 
-    // Planned features → distribute across remaining versions
     const remaining = versions.slice(1);
     if (remaining.length > 0 && planned.length > 0) {
       const perV = Math.ceil(planned.length / remaining.length);
@@ -126,23 +122,40 @@ function parseVersionsAndFeatures(md: string): Version[] {
   return versions;
 }
 
-function getStillToComplete(md: string): string[] {
+// Task type matching what page.tsx expects
+interface Task {
+  id: string;
+  description: string;
+  featureId: string | null;
+  done: boolean;
+}
+
+// Parses "Still To Complete" items as Task objects (unassigned by default)
+// The user will assign them to features on the detail page
+function getStillToComplete(md: string): Task[] {
   const block = getSection(md, "Still To Complete");
   return block
     .split("\n")
     .filter(l => l.match(/^[-*]\s+\[/))
-    .map(l => l.replace(/^[-*]\s+\[[ xX]\]\s*/, "").trim())
-    .filter(Boolean);
+    .map(l => {
+      const done = /^[-*]\s+\[[xX]\]/.test(l);
+      const description = l.replace(/^[-*]\s+\[[ xX]\]\s*/, "").trim();
+      return {
+        id: uid(),
+        description,
+        featureId: null, // unassigned — user can link to a feature on the detail page
+        done,
+      };
+    })
+    .filter(t => t.description.length > 0);
 }
 
 export function parseProjectMarkdown(md: string) {
-  // Name
   const nameMatch = md.match(/^#\s+(.+)/m);
   const name = nameMatch
     ? nameMatch[1].replace(/\s*[—–-]+\s*Full Project Brain Dump.*/i, "").trim()
     : "Untitled Project";
 
-  // Status
   const statusRaw = getSection(md, "Current Status").toLowerCase();
   const status = statusRaw.includes("launch")
     ? "launched"
@@ -150,17 +163,14 @@ export function parseProjectMarkdown(md: string) {
     ? "building"
     : "concept";
 
-  // Version
   const versionRaw = getSection(md, "Current Version")
     .replace(/^v/i, "")
     .split("\n")[0]
     .trim();
 
-  // Tech stack
   const tech_stack_grouped = parseTechStack(md);
   const tech_stack = tech_stack_grouped.flatMap(c => c.items);
 
-  // Versions + features
   const versions = parseVersionsAndFeatures(md);
 
   return {
@@ -174,7 +184,7 @@ export function parseProjectMarkdown(md: string) {
     phases: [],
     versions,
     current_progress: getSection(md, "Current Progress"),
-    still_to_complete: getStillToComplete(md),
+    still_to_complete: getStillToComplete(md), // now returns Task[] not string[]
     notes: getSection(md, "Notes"),
     blockers: getSection(md, "Blockers"),
   };

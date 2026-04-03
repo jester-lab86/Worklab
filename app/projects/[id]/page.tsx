@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Project, Version, Feature, TechCategory } from "@/types";
 
@@ -28,20 +28,34 @@ function getVersionStatus(v: Version): Version["status"] {
 }
 
 function sortVersions(versions: Version[]): Version[] {
-  return [...versions].sort((a, b) => {
-    const aNum = parseFloat(a.number);
-    const bNum = parseFloat(b.number);
-    return aNum - bNum;
+  return [...versions].sort((a, b) => parseFloat(a.number) - parseFloat(b.number));
+}
+
+// A task object — replaces plain strings
+interface Task {
+  id: string;
+  description: string;
+  featureId: string | null; // null = unassigned
+  done: boolean;
+}
+
+// Normalize still_to_complete: old plain strings → Task objects
+function normalizeTasks(raw: (string | Task)[]): Task[] {
+  return raw.map(item => {
+    if (typeof item === "string") {
+      const done = item.startsWith("✓ ");
+      return { id: uid(), description: done ? item.slice(2) : item, featureId: null, done };
+    }
+    return item as Task;
   });
 }
 
-function getUncheckedPhases(versions: Version[]): { versionTitle: string; phaseId: string; versionId: string; title: string }[] {
-  const result: { versionTitle: string; phaseId: string; versionId: string; title: string }[] = [];
+// Build a flat list of all features across all versions for the dropdown
+function getAllFeatures(versions: Version[]): { versionNumber: string; versionTitle: string; featureId: string; featureName: string }[] {
+  const result: { versionNumber: string; versionTitle: string; featureId: string; featureName: string }[] = [];
   for (const v of versions) {
-    for (const p of v.phases || []) {
-      if (!p.completed) {
-        result.push({ versionTitle: `v${v.number}`, phaseId: p.id, versionId: v.id, title: p.title });
-      }
+    for (const f of v.features || []) {
+      result.push({ versionNumber: v.number, versionTitle: v.title, featureId: f.id, featureName: f.name });
     }
   }
   return result;
@@ -82,8 +96,17 @@ export default function ProjectDetail() {
   const [addingVersion, setAddingVersion] = useState(false);
   const [newVersionNumber, setNewVersionNumber] = useState("");
   const [newVersionTitle, setNewVersionTitle] = useState("");
+
+  // Task state
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [addingTask, setAddingTask] = useState(false);
-  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskFeatureId, setNewTaskFeatureId] = useState<string>("unassigned");
+
+  // Drag state
+  const dragItem = useRef<{ featureId: string | null; index: number } | null>(null);
+  const dragOverItem = useRef<{ featureId: string | null; index: number } | null>(null);
+
   const [editingStatus, setEditingStatus] = useState(false);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summary, setSummary] = useState("");
@@ -112,18 +135,33 @@ export default function ProjectDetail() {
         setNameVal(data.name || "");
         setVersionVal(data.version || "");
         setProgressVal(data.current_progress || "");
+        // Normalize tasks from DB
+        const raw = Array.isArray(data.still_to_complete) ? data.still_to_complete : [];
+        setTasks(normalizeTasks(raw));
         if (data.versions?.length > 0) {
           setExpandedVersions({ [data.versions[0].id]: true });
         }
       });
   }, [id]);
 
-  async function patchProject(updated: Project) {
+  async function patchProject(updated: Project, updatedTasks?: Task[]) {
+    const tasksToSave = updatedTasks !== undefined ? updatedTasks : tasks;
+    const projectWithTasks = { ...updated, still_to_complete: tasksToSave };
     setProject(updated);
     await fetch(`/api/projects/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
+      body: JSON.stringify(projectWithTasks),
+    });
+  }
+
+  async function saveTasks(updatedTasks: Task[]) {
+    if (!project) return;
+    setTasks(updatedTasks);
+    await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...project, still_to_complete: updatedTasks }),
     });
   }
 
@@ -182,7 +220,10 @@ export default function ProjectDetail() {
 
   async function deleteFeature(vid: string, fid: string) {
     if (!project) return;
-    await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, features: v.features.filter(f => f.id !== fid) } : v) });
+    // Also unassign tasks linked to this feature
+    const updatedTasks = tasks.map(t => t.featureId === fid ? { ...t, featureId: null } : t);
+    await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, features: v.features.filter(f => f.id !== fid) } : v) }, updatedTasks);
+    setTasks(updatedTasks);
   }
 
   async function addPhase(vid: string) {
@@ -212,10 +253,67 @@ export default function ProjectDetail() {
   }
 
   async function addTask() {
-    if (!project || !newTaskName.trim()) return;
-    const updated = [...(project.still_to_complete || []), newTaskName.trim()];
-    await patchProject({ ...project, still_to_complete: updated });
-    setNewTaskName(""); setAddingTask(false);
+    if (!newTaskDesc.trim()) return;
+    const featureId = newTaskFeatureId === "unassigned" ? null : newTaskFeatureId;
+    const newTask: Task = { id: uid(), description: newTaskDesc.trim(), featureId, done: false };
+    const updated = [...tasks, newTask];
+    await saveTasks(updated);
+    setNewTaskDesc(""); setNewTaskFeatureId("unassigned"); setAddingTask(false);
+  }
+
+  async function toggleTask(taskId: string) {
+    const updated = tasks.map(t => t.id === taskId ? { ...t, done: !t.done } : t);
+    await saveTasks(updated);
+  }
+
+  async function deleteTask(taskId: string) {
+    const updated = tasks.filter(t => t.id !== taskId);
+    await saveTasks(updated);
+  }
+
+  // Drag handlers — reorder within a feature group
+  function handleDragStart(featureId: string | null, index: number) {
+    dragItem.current = { featureId, index };
+  }
+
+  function handleDragEnter(featureId: string | null, index: number) {
+    dragOverItem.current = { featureId, index };
+  }
+
+  async function handleDragEnd() {
+    if (!dragItem.current || !dragOverItem.current) return;
+    const { featureId: fromFeature, index: fromIndex } = dragItem.current;
+    const { featureId: toFeature, index: toIndex } = dragOverItem.current;
+
+    // Only reorder within the same group
+    if (fromFeature !== toFeature) {
+      dragItem.current = null;
+      dragOverItem.current = null;
+      return;
+    }
+
+    // Get tasks for this group, reorder, then reassemble full list
+    const groupTasks = tasks.filter(t => t.featureId === fromFeature);
+    const otherTasks = tasks.filter(t => t.featureId !== fromFeature);
+    const reordered = [...groupTasks];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    // Reassemble: keep non-group tasks in their original relative positions
+    // We rebuild the full array maintaining order of groups
+    const allFeatureIds = [...new Set(tasks.map(t => t.featureId))];
+    const newTasks: Task[] = [];
+    for (const fid of allFeatureIds) {
+      if (fid === fromFeature) {
+        newTasks.push(...reordered);
+      } else {
+        newTasks.push(...tasks.filter(t => t.featureId === fid));
+      }
+    }
+
+    dragItem.current = null;
+    dragOverItem.current = null;
+    await saveTasks(newTasks);
   }
 
   async function addTechItem() {
@@ -265,6 +363,35 @@ export default function ProjectDetail() {
   const completedFeatures = allFeatures.filter(f => f.status === "complete").length;
   const statusColor = STATUS_COLORS[project.status] || "var(--cyan)";
 
+  // Build grouped task view: Version → Features → Tasks
+  // Structure: { versionId, versionNumber, versionTitle, features: [{ featureId, featureName, tasks }] }
+  const allFeaturesFlat = getAllFeatures(project.versions || []);
+
+  // Build groups for display
+  const groupedForDisplay: {
+    versionNumber: string;
+    versionTitle: string;
+    features: { featureId: string | null; featureName: string; tasks: Task[] }[];
+  }[] = [];
+
+  for (const v of sortVersions(project.versions || [])) {
+    const versionFeatures: { featureId: string | null; featureName: string; tasks: Task[] }[] = [];
+    for (const f of v.features || []) {
+      const featureTasks = tasks.filter(t => t.featureId === f.id);
+      if (featureTasks.length > 0) {
+        versionFeatures.push({ featureId: f.id, featureName: f.name, tasks: featureTasks });
+      }
+    }
+    if (versionFeatures.length > 0) {
+      groupedForDisplay.push({ versionNumber: v.number, versionTitle: v.title, features: versionFeatures });
+    }
+  }
+
+  // Unassigned tasks
+  const unassignedTasks = tasks.filter(t => t.featureId === null);
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.done).length;
+
   return (
     <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", background: "var(--bg)" }}>
 
@@ -280,7 +407,6 @@ export default function ProjectDetail() {
             ← ALL PROJECTS
           </button>
           <div style={{ width: "1px", height: "20px", background: "var(--border)" }} />
-          {/* EDITABLE NAME */}
           {editingName ? (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <input value={nameVal} onChange={e => setNameVal(e.target.value)}
@@ -298,7 +424,6 @@ export default function ProjectDetail() {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {/* EDITABLE VERSION */}
           {editingVersion ? (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <input value={versionVal} onChange={e => setVersionVal(e.target.value)}
@@ -314,7 +439,6 @@ export default function ProjectDetail() {
               <button onClick={() => setEditingVersion(true)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "10px" }}>✎</button>
             </div>
           )}
-          {/* STATUS DROPDOWN */}
           <div style={{ position: "relative" }}>
             <button onClick={() => setEditingStatus(!editingStatus)} style={{
               padding: "4px 12px", borderRadius: "2px", fontSize: "10px", fontWeight: 700,
@@ -418,7 +542,6 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                 ))}
-
                 {editingTechStack && (
                   <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "4px" }}>Add Technology</div>
@@ -444,7 +567,7 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            {/* VERSIONS */}
+            {/* VERSIONS & ROADMAP */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
               <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", color: "var(--cyan)" }}>VERSIONS & ROADMAP</span>
@@ -462,11 +585,11 @@ export default function ProjectDetail() {
                 </div>
               )}
 
-            {sortVersions(project.versions || []).map(v => {
-  const expanded = expandedVersions[v.id];
-  const computedStatus = getVersionStatus(v);
-  const vPct = v.phases?.length > 0 ? Math.round(v.phases.filter(p => p.completed).length / v.phases.length * 100) : 0;
-  const vColor = VERSION_STATUS_COLORS[computedStatus] || "var(--muted)";
+              {sortVersions(project.versions || []).map(v => {
+                const expanded = expandedVersions[v.id];
+                const computedStatus = getVersionStatus(v);
+                const vPct = v.phases?.length > 0 ? Math.round(v.phases.filter(p => p.completed).length / v.phases.length * 100) : 0;
+                const vColor = VERSION_STATUS_COLORS[computedStatus] || "var(--muted)";
                 return (
                   <div key={v.id} style={{ borderBottom: "1px solid var(--border)" }}>
                     <div onClick={() => toggleVersion(v.id)} style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer", background: expanded ? "var(--surface2)" : "transparent", transition: "background 0.2s" }}>
@@ -569,81 +692,178 @@ export default function ProjectDetail() {
           {/* RIGHT COLUMN */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
-            {/* STILL TO COMPLETE */}
-<div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-  <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
-    <button onClick={() => setAddingTask(true)} style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>+ ADD TASK</button>
-  </div>
+            {/* ── STILL TO COMPLETE ── */}
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
 
-  {addingTask && (
-    <div style={{ padding: "10px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: "8px" }}>
-      <input value={newTaskName} onChange={e => setNewTaskName(e.target.value)} onKeyDown={e => e.key === "Enter" && addTask()} placeholder="Task description..."
-        style={{ flex: 1, background: "var(--surface3)", border: "1px solid var(--border2)", color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "12px", padding: "6px 10px", borderRadius: "2px", outline: "none" }} />
-      <button onClick={addTask} style={{ background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>Add</button>
-      <button onClick={() => setAddingTask(false)} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
-    </div>
-  )}
+              {/* Header */}
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
+                  {totalTasks > 0 && (
+                    <span style={{ fontSize: "10px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{doneTasks}/{totalTasks}</span>
+                  )}
+                </div>
+                <button onClick={() => { setAddingTask(true); setNewTaskFeatureId("unassigned"); }}
+                  style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>
+                  + ADD TASK
+                </button>
+              </div>
 
-  <div style={{ padding: "8px 20px" }}>
+              {/* Add Task Form */}
+              {addingTask && (
+                <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <input
+                    value={newTaskDesc}
+                    onChange={e => setNewTaskDesc(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addTask()}
+                    placeholder="Task description..."
+                    autoFocus
+                    style={{ background: "var(--surface3)", border: "1px solid var(--border2)", color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "12px", padding: "7px 10px", borderRadius: "2px", outline: "none" }}
+                  />
+                  <select
+                    value={newTaskFeatureId}
+                    onChange={e => setNewTaskFeatureId(e.target.value)}
+                    style={{ background: "var(--surface3)", border: "1px solid var(--border2)", color: newTaskFeatureId !== "unassigned" ? "var(--text)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "7px 8px", borderRadius: "2px", outline: "none" }}
+                  >
+                    <option value="unassigned">— No feature (Unassigned) —</option>
+                    {sortVersions(project.versions || []).map(v => (
+                      <optgroup key={v.id} label={`v${v.number} — ${v.title}`}>
+                        {(v.features || []).map(f => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button onClick={addTask} style={{ flex: 1, background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px", borderRadius: "2px", cursor: "pointer" }}>ADD</button>
+                    <button onClick={() => { setAddingTask(false); setNewTaskDesc(""); }} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "6px 10px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
+                  </div>
+                </div>
+              )}
 
-    {/* AUTO-PULLED UNCHECKED PHASES */}
-    {getUncheckedPhases(project.versions || []).map((item, i) => (
-      <div key={`phase-${item.phaseId}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-        <div
-          onClick={async () => {
-            const updated = {
-              ...project,
-              versions: project.versions.map(v =>
-                v.id === item.versionId
-                  ? { ...v, phases: v.phases.map(p => p.id === item.phaseId ? { ...p, completed: true } : p) }
-                  : v
-              ),
-            };
-            await patchProject(updated);
-          }}
-          style={{ width: "16px", height: "16px", minWidth: "16px", borderRadius: "2px", border: "2px solid var(--border2)", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s" }}
-        />
-        <div style={{ flex: 1 }}>
-          <span style={{ fontSize: "12px", color: "var(--text)" }}>{item.title}</span>
-          <span style={{ fontSize: "10px", color: "var(--muted)", marginLeft: "8px" }}>{item.versionTitle}</span>
-        </div>
-      </div>
-    ))}
+              {/* Task Groups */}
+              <div style={{ padding: "8px 0" }}>
 
-    {/* MANUAL TASKS */}
-    {(project.still_to_complete || []).map((item, i) => {
-      const done = item.startsWith("✓ ");
-      return (
-        <div key={`task-${i}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: i < (project.still_to_complete.length - 1) ? "1px solid var(--border)" : "none" }}>
-          <div
-            onClick={async () => {
-              const updated = [...project.still_to_complete];
-              updated[i] = done ? item.slice(2) : "✓ " + item;
-              await patchProject({ ...project, still_to_complete: updated });
-            }}
-            style={{ width: "16px", height: "16px", minWidth: "16px", borderRadius: "2px", border: done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s" }}
-          >
-            {done ? "✓" : ""}
-          </div>
-          <span style={{ fontSize: "12px", color: done ? "var(--muted)" : "var(--text)", textDecoration: done ? "line-through" : "none", flex: 1 }}>
-            {done ? item.slice(2) : item}
-          </span>
-          <button onClick={async () => {
-            const updated = project.still_to_complete.filter((_, idx) => idx !== i);
-            await patchProject({ ...project, still_to_complete: updated });
-          }} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "12px", padding: "0 4px" }}>✕</button>
-        </div>
-      );
-    })}
+                {/* Version-grouped features */}
+                {groupedForDisplay.map(vGroup => (
+                  <div key={vGroup.versionNumber}>
+                    {/* Version header */}
+                    <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--cyan)", textTransform: "uppercase" }}>v{vGroup.versionNumber}</span>
+                      <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{vGroup.versionTitle}</span>
+                      <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+                    </div>
 
-    {getUncheckedPhases(project.versions || []).length === 0 && (project.still_to_complete || []).length === 0 && (
-      <div style={{ padding: "16px 0", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>
-        All tasks complete ✓
-      </div>
-    )}
-  </div>
-</div>
+                    {vGroup.features.map(fGroup => (
+                      <div key={fGroup.featureId} style={{ marginBottom: "4px" }}>
+                        {/* Feature sub-header */}
+                        <div style={{ padding: "5px 20px 4px 28px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", letterSpacing: "0.5px" }}>◆ {fGroup.featureName}</span>
+                          <div style={{ flex: 1, height: "1px", background: "var(--border)", opacity: 0.5 }} />
+                          <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{fGroup.tasks.filter(t => t.done).length}/{fGroup.tasks.length}</span>
+                        </div>
+
+                        {/* Tasks in this feature group */}
+                        {fGroup.tasks.map((task, taskIdx) => (
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)}
+                            onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={e => e.preventDefault()}
+                            style={{
+                              display: "flex", alignItems: "center", gap: "8px",
+                              padding: "7px 20px 7px 28px",
+                              borderBottom: "1px solid var(--border)",
+                              cursor: "grab",
+                              transition: "background 0.15s",
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                          >
+                            {/* Drag handle */}
+                            <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
+                            {/* Checkbox */}
+                            <div
+                              onClick={() => toggleTask(task.id)}
+                              style={{
+                                width: "15px", height: "15px", minWidth: "15px", borderRadius: "2px",
+                                border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)",
+                                background: task.done ? "var(--cyan)" : "transparent",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s",
+                              }}
+                            >
+                              {task.done ? "✓" : ""}
+                            </div>
+                            {/* Description */}
+                            <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>
+                              {task.description}
+                            </span>
+                            {/* Delete */}
+                            <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--border2)", cursor: "pointer", fontSize: "11px", padding: "0 2px", flexShrink: 0, opacity: 0.6 }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                {/* Unassigned tasks */}
+                {unassignedTasks.length > 0 && (
+                  <div>
+                    <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--muted)", textTransform: "uppercase" }}>Unassigned</span>
+                      <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+                    </div>
+                    {unassignedTasks.map((task, taskIdx) => (
+                      <div
+                        key={task.id}
+                        draggable
+                        onDragStart={() => handleDragStart(null, taskIdx)}
+                        onDragEnter={() => handleDragEnter(null, taskIdx)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={e => e.preventDefault()}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "8px",
+                          padding: "7px 20px",
+                          borderBottom: "1px solid var(--border)",
+                          cursor: "grab",
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
+                        <div
+                          onClick={() => toggleTask(task.id)}
+                          style={{
+                            width: "15px", height: "15px", minWidth: "15px", borderRadius: "2px",
+                            border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)",
+                            background: task.done ? "var(--cyan)" : "transparent",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "9px", color: "var(--bg)", cursor: "pointer", transition: "all 0.2s",
+                          }}
+                        >
+                          {task.done ? "✓" : ""}
+                        </div>
+                        <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>
+                          {task.description}
+                        </span>
+                        <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--border2)", cursor: "pointer", fontSize: "11px", padding: "0 2px", flexShrink: 0, opacity: 0.6 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {totalTasks === 0 && (
+                  <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>
+                    All tasks complete ✓
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* NOTES */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
