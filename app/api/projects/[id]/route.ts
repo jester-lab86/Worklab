@@ -42,7 +42,7 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
         name=$1, description=$2, status=$3, version=$4,
         tech_stack=$5, tech_stack_grouped=$6,
         features=$7, phases=$8, versions=$9,
-        current_progress=$10, still_to_complete=$11,
+        current_progress=$10, still_to_complete=$11::text,
         notes=$12, blockers=$13, updated_at=NOW()
       WHERE id=$14 RETURNING *`,
       [
