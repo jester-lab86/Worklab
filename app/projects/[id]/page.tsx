@@ -133,8 +133,9 @@ export default function ProjectDetail() {
   const [newTechItem, setNewTechItem] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
 const [editingTechStack, setEditingTechStack] = useState(false);
-const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈 ADD THIS
-
+const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+const [tasksCollapsed, setTasksCollapsed] = useState(false);
+const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete");
 
   useEffect(() => {
     fetch(`/api/projects/${id}`)
@@ -711,21 +712,29 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
 
               {/* Header */}
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ padding: "14px 20px", borderBottom: tasksCollapsed ? "none" : "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div onClick={() => setTasksCollapsed(p => !p)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", flex: 1 }}>
+                  <span style={{ color: "var(--muted)", fontSize: "10px" }}>{tasksCollapsed ? "▶" : "▼"}</span>
                   <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
                   {totalTasks > 0 && (
                     <span style={{ fontSize: "10px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{doneTasks}/{totalTasks}</span>
                   )}
                 </div>
-                <button onClick={() => { setAddingTask(true); setNewTaskFeatureId("unassigned"); }}
-                  style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>
-                  + ADD TASK
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {/* Filter toggle */}
+                  <div style={{ display: "flex", borderRadius: "2px", overflow: "hidden", border: "1px solid var(--border2)" }}>
+                    <button onClick={() => setTaskFilter("incomplete")} style={{ padding: "3px 8px", background: taskFilter === "incomplete" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "incomplete" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer", letterSpacing: "0.5px" }}>OPEN</button>
+                    <button onClick={() => setTaskFilter("all")} style={{ padding: "3px 8px", background: taskFilter === "all" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "all" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer", letterSpacing: "0.5px" }}>ALL</button>
+                  </div>
+                  <button onClick={() => { setAddingTask(true); setNewTaskFeatureId("unassigned"); }}
+                    style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>
+                    + ADD
+                  </button>
+                </div>
               </div>
 
-              {/* Add Task Form */}
-              {addingTask && (
+             {/* Add Task Form */}
+              {!tasksCollapsed && addingTask && (
                 <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", flexDirection: "column", gap: "8px" }}>
                   <input
                     value={newTaskDesc}
@@ -757,7 +766,7 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈
               )}
 
               {/* Task Groups */}
-              <div style={{ padding: "8px 0" }}>
+              {!tasksCollapsed && <div style={{ padding: "8px 0" }}>
 
                 {/* Version-grouped features */}
                 {groupedForDisplay.map(vGroup => (
@@ -779,7 +788,7 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈
                         </div>
 
                         {/* Tasks in this feature group */}
-                        {fGroup.tasks.map((task, taskIdx) => (
+                        {fGroup.tasks.filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
                           <div key={task.id}>
   <div
     draggable
@@ -857,8 +866,7 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈
                       <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--muted)", textTransform: "uppercase" }}>Unassigned</span>
                       <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
                     </div>
-                    {unassignedTasks.map((task, taskIdx) => (
-                      <div key={task.id}>
+{unassignedTasks.filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (                      <div key={task.id}>
   <div
     draggable
     onDragStart={() => handleDragStart(null, taskIdx)}
@@ -930,7 +938,7 @@ const [editingTaskId, setEditingTaskId] = useState<string | null>(null); // 👈
                     All tasks complete ✓
                   </div>
                 )}
-              </div>
+             </div>}
             </div>
 
             {/* NOTES */}
