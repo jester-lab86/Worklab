@@ -44,8 +44,8 @@ export async function POST(req: Request) {
       name, description, status, version,
       tech_stack, JSON.stringify(tech_stack_grouped),
       features, JSON.stringify(phases), JSON.stringify(versions),
-      current_progress, still_to_complete,
-      notes, blockers
+      current_progress, JSON.stringify(still_to_complete),
+notes, blockers
     ]
   );
 
