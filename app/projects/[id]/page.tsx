@@ -830,8 +830,8 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
   {editingTaskId === task.id && (
     <div style={{ padding: "8px 20px 10px 28px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", gap: "6px", alignItems: "center" }}>
       <select
-        defaultValue={task.featureId ?? "unassigned"}
-        onChange={async e => {
+        value={task.featureId ?? "unassigned"}
+                onChange={async e => {
           const fid = e.target.value === "unassigned" ? null : e.target.value;
           const updated = tasks.map(t => t.id === task.id ? { ...t, featureId: fid } : t);
           await saveTasks(updated);
@@ -905,8 +905,8 @@ const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete")
   {editingTaskId === task.id && (
     <div style={{ padding: "8px 20px 10px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", gap: "6px", alignItems: "center" }}>
       <select
-        defaultValue="unassigned"
-        onChange={async e => {
+        value={task.featureId ?? "unassigned"}
+                onChange={async e => {
           const fid = e.target.value === "unassigned" ? null : e.target.value;
           const updated = tasks.map(t => t.id === task.id ? { ...t, featureId: fid } : t);
           await saveTasks(updated);
