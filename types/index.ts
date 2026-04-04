@@ -1,11 +1,20 @@
 export type ProjectStatus = "concept" | "building" | "launched";
 export type FeatureStatus = "planned" | "in-progress" | "complete";
 
+export type Task = {
+  id: string;
+  description: string;
+  featureId: string | null;
+  done: boolean;
+  notes?: string;
+};
+
 export type Feature = {
   id: string;
   name: string;
   status: FeatureStatus;
   phase?: string;
+  notes?: string;
 };
 
 export type Phase = {
@@ -21,6 +30,7 @@ export type Version = {
   status: "complete" | "in-progress" | "planned";
   features: Feature[];
   phases: Phase[];
+  notes?: string;
 };
 
 export type TechCategory = {
@@ -40,7 +50,7 @@ export type Project = {
   phases: Phase[];
   versions: Version[];
   current_progress: string;
-  still_to_complete: string[];
+  still_to_complete: Task[];
   notes: string;
   blockers: string;
   created_at: string;
