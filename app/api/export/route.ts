@@ -2,20 +2,17 @@ import { Pool } from "pg";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
 
   try {
     const projects = await pool.query("SELECT * FROM projects ORDER BY created_at DESC");
-    const features = await pool.query("SELECT * FROM features ORDER BY project_id");
-    const phases = await pool.query("SELECT * FROM phases ORDER BY project_id");
-    const blockers = await pool.query("SELECT * FROM blockers ORDER BY project_id");
 
     const data = {
       exported_at: new Date().toISOString(),
       projects: projects.rows,
-      features: features.rows,
-      phases: phases.rows,
-      blockers: blockers.rows,
     };
 
     return new NextResponse(JSON.stringify(data, null, 2), {
