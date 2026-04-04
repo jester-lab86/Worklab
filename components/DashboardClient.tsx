@@ -67,14 +67,22 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             onFocus={e => e.target.style.borderColor = "rgba(0,212,255,0.4)"}
             onBlur={e => e.target.style.borderColor = "var(--border)"}
           />
-          <Link href="/projects/new" style={{
-            padding: "7px 16px", background: "var(--cyan-dim)",
-            border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
-            fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
-            borderRadius: "2px", textDecoration: "none",
-          }}>
-            + NEW
-          </Link>
+          <a href="/api/export" download style={{
+  padding: "7px 16px", background: "transparent",
+  border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
+  fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+  borderRadius: "2px", textDecoration: "none",
+}}>
+  ⬇ EXPORT
+</a>
+<Link href="/projects/new" style={{
+  padding: "7px 16px", background: "var(--cyan-dim)",
+  border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
+  fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+  borderRadius: "2px", textDecoration: "none",
+}}>
+  + NEW
+</Link>
           <button
             onClick={() => signOut({ callbackUrl: "/auth/signin" })}
             style={{
