@@ -199,7 +199,12 @@ export default function ProjectDetail() {
         setVersionVal(data.version || "");
         setProgressVal(data.current_progress || "");
         const raw = Array.isArray(data.still_to_complete) ? data.still_to_complete : [];
-        setTasks(normalizeTasks(raw));
+setTasks(normalizeTasks(raw));
+if (data.versions?.length > 0) {
+  const collapsed: Record<string, boolean> = {};
+  data.versions.forEach((v: any) => { collapsed[v.number] = true; });
+  setCollapsedTaskGroups(collapsed);
+}
       });
   }, [id]);
 
