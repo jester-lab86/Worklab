@@ -142,6 +142,7 @@ export default function ProjectDetail() {
   const [editingTechStack, setEditingTechStack] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
+  const [collapsedTaskGroups, setCollapsedTaskGroups] = useState<Record<string, boolean>>({});
   const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete");
 
   // Modal state
@@ -184,21 +185,22 @@ export default function ProjectDetail() {
   }
 
   useEffect(() => {
-    fetch(`/api/projects/${id}`).then(r => r.json()).then(data => {
-      if (typeof data.versions === "string") data.versions = JSON.parse(data.versions);
-      if (typeof data.tech_stack_grouped === "string") data.tech_stack_grouped = JSON.parse(data.tech_stack_grouped);
-      if (typeof data.phases === "string") data.phases = JSON.parse(data.phases);
-      setProject(data);
-      setNotes(data.notes || "");
-      setBlockers(data.blockers || "");
-      setSummary(data.description || "");
-      setNameVal(data.name || "");
-      setVersionVal(data.version || "");
-      setProgressVal(data.current_progress || "");
-      const raw = Array.isArray(data.still_to_complete) ? data.still_to_complete : [];
-      setTasks(normalizeTasks(raw));
-      if (data.versions?.length > 0) setExpandedVersions({ [data.versions[0].id]: true });
-    });
+    fetch(`/api/projects/${id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (typeof data.versions === "string") data.versions = JSON.parse(data.versions);
+        if (typeof data.tech_stack_grouped === "string") data.tech_stack_grouped = JSON.parse(data.tech_stack_grouped);
+        if (typeof data.phases === "string") data.phases = JSON.parse(data.phases);
+        setProject(data);
+        setNotes(data.notes || "");
+        setBlockers(data.blockers || "");
+        setSummary(data.description || "");
+        setNameVal(data.name || "");
+        setVersionVal(data.version || "");
+        setProgressVal(data.current_progress || "");
+        const raw = Array.isArray(data.still_to_complete) ? data.still_to_complete : [];
+        setTasks(normalizeTasks(raw));
+      });
   }, [id]);
 
   async function patchProject(updated: Project, updatedTasks?: Task[]) {
@@ -778,12 +780,14 @@ export default function ProjectDetail() {
               {!tasksCollapsed && <div style={{ padding: "8px 0" }}>
                 {groupedForDisplay.map(vGroup => (
                   <div key={vGroup.versionNumber}>
-                    <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--cyan)", textTransform: "uppercase" }}>v{vGroup.versionNumber}</span>
-                      <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{vGroup.versionTitle}</span>
-                      <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-                    </div>
-                    {vGroup.features.map(fGroup => (
+                    <div onClick={() => setCollapsedTaskGroups(p => ({ ...p, [vGroup.versionNumber]: !p[vGroup.versionNumber] }))}
+  style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+  <span style={{ fontSize: "8px", color: "var(--muted)" }}>{collapsedTaskGroups[vGroup.versionNumber] ? "▶" : "▼"}</span>
+  <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--cyan)", textTransform: "uppercase" }}>v{vGroup.versionNumber}</span>
+  <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{vGroup.versionTitle}</span>
+  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+</div>
+                    {!collapsedTaskGroups[vGroup.versionNumber] && vGroup.features.map(fGroup => (
                       <div key={fGroup.featureId} style={{ marginBottom: "4px" }}>
                         <div style={{ padding: "5px 20px 4px 28px", display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", letterSpacing: "0.5px" }}>◆ {fGroup.featureName}</span>
