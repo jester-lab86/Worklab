@@ -78,6 +78,7 @@ function parseVersionsAndFeatures(md: string): Version[] {
     }
   }
 
+  // Parse features — support both plain list and "name | status | phase" format
   const featuresMatch = md.match(
     /##\s+Features[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i
   );
@@ -91,11 +92,28 @@ function parseVersionsAndFeatures(md: string): Version[] {
       const match = line.match(/^[-*]\s+\[([ xX])\]\s+(.+)/);
       if (!match) continue;
       const isDone = match[1].toLowerCase() === "x";
-      const name = match[2].trim();
-      if (isDone) {
-        completed.push({ id: uid(), name, status: "complete" });
+      const raw = match[2].trim();
+
+      // Support "Feature name | status: X | phase: Y" format
+      const parts = raw.split("|").map(p => p.trim());
+      const name = parts[0].trim();
+
+      // Parse optional status override
+      let featureStatus: Feature["status"] = isDone ? "complete" : "planned";
+      const statusPart = parts.find(p => p.toLowerCase().startsWith("status:"));
+      if (statusPart) {
+        const s = statusPart.replace(/status:/i, "").trim().toLowerCase();
+        if (s === "in-progress") featureStatus = "in-progress";
+        else if (s === "complete") featureStatus = "complete";
+        else featureStatus = "planned";
+      }
+
+      const feature: Feature = { id: uid(), name, status: featureStatus };
+
+      if (isDone || featureStatus === "complete") {
+        completed.push(feature);
       } else {
-        planned.push({ id: uid(), name, status: "planned" });
+        planned.push(feature);
       }
     }
 
@@ -122,29 +140,82 @@ function parseVersionsAndFeatures(md: string): Version[] {
   return versions;
 }
 
-// Task type matching what page.tsx expects
 interface Task {
   id: string;
   description: string;
   featureId: string | null;
   done: boolean;
+  notes: string;
 }
 
-// Parses "Still To Complete" items as Task objects (unassigned by default)
-// The user will assign them to features on the detail page
-function getStillToComplete(md: string): Task[] {
+// Normalize a string for fuzzy matching — lowercase, strip punctuation
+function normalizeStr(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+}
+
+// Try to match a task description to a feature by keyword overlap
+// Returns the featureId of the best match, or null if no good match found
+function matchTaskToFeature(
+  description: string,
+  allFeatures: { id: string; name: string }[]
+): string | null {
+  const taskWords = new Set(
+    normalizeStr(description).split(" ").filter(w => w.length > 3)
+  );
+
+  let bestMatch: string | null = null;
+  let bestScore = 0;
+
+  for (const feature of allFeatures) {
+    const featureWords = normalizeStr(feature.name).split(" ").filter(w => w.length > 3);
+    let score = 0;
+
+    for (const word of featureWords) {
+      if (taskWords.has(word)) score++;
+    }
+
+    // Strong boost if feature name appears as substring in task description
+    if (normalizeStr(description).includes(normalizeStr(feature.name))) {
+      score += 3;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = feature.id;
+    }
+  }
+
+  // Only return a match if at least 1 meaningful word overlaps
+  return bestScore >= 1 ? bestMatch : null;
+}
+
+function getStillToComplete(md: string, versions: Version[]): Task[] {
   const block = getSection(md, "Still To Complete");
+
+  // Flatten all features across all versions for matching
+  const allFeatures = versions.flatMap(v =>
+    (v.features || []).map(f => ({ id: f.id, name: f.name }))
+  );
+
   return block
     .split("\n")
     .filter(l => l.match(/^[-*]\s+\[/))
     .map(l => {
       const done = /^[-*]\s+\[[xX]\]/.test(l);
       const description = l.replace(/^[-*]\s+\[[ xX]\]\s*/, "").trim();
+
+      // Try to auto-match to a feature by keyword overlap
+      const featureId =
+        allFeatures.length > 0
+          ? matchTaskToFeature(description, allFeatures)
+          : null;
+
       return {
         id: uid(),
         description,
-        featureId: null, // unassigned — user can link to a feature on the detail page
+        featureId,
         done,
+        notes: "",
       };
     })
     .filter(t => t.description.length > 0);
@@ -171,7 +242,9 @@ export function parseProjectMarkdown(md: string) {
   const tech_stack_grouped = parseTechStack(md);
   const tech_stack = tech_stack_grouped.flatMap(c => c.items);
 
+  // Parse versions first so tasks can be matched to features
   const versions = parseVersionsAndFeatures(md);
+  const still_to_complete = getStillToComplete(md, versions);
 
   return {
     name,
@@ -184,7 +257,7 @@ export function parseProjectMarkdown(md: string) {
     phases: [],
     versions,
     current_progress: getSection(md, "Current Progress"),
-    still_to_complete: getStillToComplete(md), // now returns Task[] not string[]
+    still_to_complete,
     notes: getSection(md, "Notes"),
     blockers: getSection(md, "Blockers"),
   };
