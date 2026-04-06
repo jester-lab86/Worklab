@@ -529,6 +529,25 @@ if (data.versions?.length > 0) {
               <button onClick={() => setEditingVersion(true)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "10px" }}>✎</button>
             </div>
           )}
+          {/* PRIORITY SELECTOR */}
+          {(() => {
+            const priorityColors: Record<string, string> = { CRITICAL: "#ff3b5c", HIGH: "#ff8c00", NORMAL: "var(--cyan)", BACKLOG: "#3d5572" };
+            const pc = priorityColors[project.priority || "NORMAL"];
+            return (
+              <div style={{ display: "flex", gap: "4px" }}>
+                {["CRITICAL", "HIGH", "NORMAL", "BACKLOG"].map(p => (
+                  <button key={p} onClick={() => patchProject({ ...project, priority: p })} style={{
+                    padding: "4px 8px", borderRadius: "2px", fontSize: "9px", fontWeight: 700,
+                    letterSpacing: "0.5px", fontFamily: "var(--font-jetbrains)", cursor: "pointer",
+                    background: (project.priority || "NORMAL") === p ? `${priorityColors[p]}20` : "transparent",
+                    border: `1px solid ${(project.priority || "NORMAL") === p ? priorityColors[p] : "var(--border)"}`,
+                    color: (project.priority || "NORMAL") === p ? priorityColors[p] : "var(--muted)",
+                    transition: "all 0.15s",
+                  }}>{p}</button>
+                ))}
+              </div>
+            );
+          })()}
           <div style={{ position: "relative" }}>
             <button onClick={() => setEditingStatus(!editingStatus)} style={{ padding: "4px 12px", borderRadius: "2px", fontSize: "10px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", fontFamily: "var(--font-syne)", background: `${statusColor}18`, border: `1px solid ${statusColor}40`, color: statusColor, cursor: "pointer" }}>{project.status} ▾</button>
             {editingStatus && (
