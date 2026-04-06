@@ -49,6 +49,7 @@ export type Project = {
   features: string[];
   phases: Phase[];
   versions: Version[];
+  priority?: string;
   current_progress: string;
   still_to_complete: Task[];
   notes: string;
