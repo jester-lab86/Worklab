@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Project, Version, Feature, TechCategory } from "@/types";
+import ChatPanel from "@/components/ChatPanel";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -117,6 +118,7 @@ export default function ProjectDetail() {
   const [blockers, setBlockers] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({});
   const [addingFeature, setAddingFeature] = useState<string | null>(null);
   const [addingPhase, setAddingPhase] = useState<string | null>(null);
@@ -513,6 +515,7 @@ if (data.versions?.length > 0) {
               <input value={nameVal} onChange={e => setNameVal(e.target.value)} style={{ background: "var(--surface2)", border: "1px solid rgba(0,212,255,0.4)", color: "var(--text)", fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 700, padding: "4px 8px", borderRadius: "2px", outline: "none" }} />
               <button onClick={async () => { await patchProject({ ...project, name: nameVal }); setEditingName(false); }} style={{ background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", padding: "4px 8px", borderRadius: "2px", cursor: "pointer" }}>SAVE</button>
               <button onClick={() => setEditingName(false)} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", padding: "4px 8px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
+            
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -553,6 +556,25 @@ if (data.versions?.length > 0) {
               </div>
             );
           })()}
+          <button
+  onClick={() => setChatOpen(true)}
+  style={{
+    padding: "7px 16px",
+    background: "rgba(0,212,255,0.08)",
+    border: "1px solid rgba(0,212,255,0.3)",
+    color: "var(--cyan)",
+    fontFamily: "var(--font-jetbrains)",
+    fontSize: "11px",
+    letterSpacing: "1px",
+    borderRadius: "2px",
+    cursor: "pointer",
+    transition: "all 0.15s",
+  }}
+  onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,255,0.15)"}
+  onMouseLeave={e => e.currentTarget.style.background = "rgba(0,212,255,0.08)"}
+>
+  ◈ AI INTEL
+</button>
           <div style={{ position: "relative" }}>
             <button onClick={() => setEditingStatus(!editingStatus)} style={{ padding: "4px 12px", borderRadius: "2px", fontSize: "10px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", fontFamily: "var(--font-syne)", background: `${statusColor}18`, border: `1px solid ${statusColor}40`, color: statusColor, cursor: "pointer" }}>{project.status} ▾</button>
             {editingStatus && (
@@ -920,9 +942,15 @@ if (data.versions?.length > 0) {
               onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(239,68,68,0.2)"; e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.background = "transparent"; }}>
               DELETE PROJECT
             </button>
+            
           </div>
         </div>
       </div>
+
+      {chatOpen && project && (
+        <ChatPanel project={project} onClose={() => setChatOpen(false)} />
+      )}
+
     </div>
   );
 }
