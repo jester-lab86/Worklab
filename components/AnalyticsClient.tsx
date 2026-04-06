@@ -12,12 +12,34 @@ function getPct(project: Project): number {
 }
 
 function getTasks(project: Project): { total: number; done: number } {
-  const raw = project.still_to_complete;
-  const tasks = Array.isArray(raw) ? raw.filter((t: any) => t && typeof t === "object" && "description" in t) : [];
+  let tasks = project.still_to_complete;
+  if (typeof tasks === "string") {
+    try { tasks = JSON.parse(tasks); } catch { return { total: 0, done: 0 }; }
+  }
+  if (!Array.isArray(tasks)) return { total: 0, done: 0 };
+  const valid = tasks.filter((t: any) => t && typeof t === "object" && "description" in t);
   return {
-    total: tasks.length,
-    done: tasks.filter((t: any) => t.done === true).length,
+    total: valid.length,
+    done: valid.filter((t: any) => t.done === true).length,
   };
+}
+
+function KpiValue({ value, color }: { value: string | number; color: string }) {
+  const str = String(value);
+  if (str.includes("/")) {
+    const [left, right] = str.split("/");
+    return (
+      <div style={{ fontFamily: "var(--font-syne)", fontWeight: 800, color, lineHeight: 1.1 }}>
+        <span style={{ fontSize: "28px" }}>{left}</span>
+        <span style={{ fontSize: "14px", color: "var(--muted)", fontWeight: 600 }}>/{right}</span>
+      </div>
+    );
+  }
+  return (
+    <div style={{ fontFamily: "var(--font-syne)", fontSize: "32px", fontWeight: 800, color, lineHeight: 1 }}>
+      {value}
+    </div>
+  );
 }
 
 export default function AnalyticsClient({ projects }: { projects: Project[] }) {
@@ -52,6 +74,14 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
     launched: "#10b981", building: "#f59e0b", concept: "#8b5cf6",
   };
 
+  const kpis = [
+    { label: "Total Projects", value: total, color: "var(--cyan)" },
+    { label: "Avg Completion", value: `${avgPct}%`, color: "var(--cyan)" },
+    { label: "Tasks Done", value: `${allTasks.done}/${allTasks.total}`, color: "var(--green)" },
+    { label: "Versions Complete", value: `${completedVersions}/${totalVersions}`, color: "var(--purple)" },
+    { label: "Blocked", value: blocked, color: "var(--red)" },
+  ];
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-jetbrains)" }}>
 
@@ -81,17 +111,11 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
 
         {/* TOP KPI ROW */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "16px", marginBottom: "24px" }}>
-          {[
-            { label: "Total Projects", value: total, color: "var(--cyan)" },
-            { label: "Avg Completion", value: `${avgPct}%`, color: "var(--cyan)" },
-            { label: "Tasks Done", value: `${allTasks.done}/${allTasks.total}`, color: "var(--green)" },
-            { label: "Versions Complete", value: `${completedVersions}/${totalVersions}`, color: "var(--purple)" },
-            { label: "Blocked", value: blocked, color: "var(--red)" },
-          ].map(kpi => (
-            <div key={kpi.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", padding: "20px", position: "relative", overflow: "hidden" }}>
+          {kpis.map(kpi => (
+            <div key={kpi.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", padding: "16px 20px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${kpi.color}, transparent)` }} />
               <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px" }}>{kpi.label}</div>
-              <div style={{ fontFamily: "var(--font-syne)", fontSize: "clamp(18px, 2.5vw, 32px)", fontWeight: 800, color: kpi.color, lineHeight: 1, wordBreak: "break-all" }}>{kpi.value}</div>
+              <KpiValue value={kpi.value} color={kpi.color} />
             </div>
           ))}
         </div>
