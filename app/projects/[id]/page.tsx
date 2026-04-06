@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Project, Version, Feature, TechCategory } from "@/types";
 import ChatPanel from "@/components/ChatPanel";
+import { exportProjectPdf } from "@/lib/exportPdf";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -556,6 +557,31 @@ if (data.versions?.length > 0) {
               </div>
             );
           })()}
+          <button
+  onClick={() => exportProjectPdf(project)}
+  style={{
+    padding: "7px 16px",
+    background: "transparent",
+    border: "1px solid rgba(0,212,255,0.2)",
+    color: "var(--muted)",
+    fontFamily: "var(--font-jetbrains)",
+    fontSize: "11px",
+    letterSpacing: "1px",
+    borderRadius: "2px",
+    cursor: "pointer",
+    transition: "all 0.15s",
+  }}
+  onMouseEnter={e => {
+    e.currentTarget.style.borderColor = "rgba(0,212,255,0.4)";
+    e.currentTarget.style.color = "var(--cyan)";
+  }}
+  onMouseLeave={e => {
+    e.currentTarget.style.borderColor = "rgba(0,212,255,0.2)";
+    e.currentTarget.style.color = "var(--muted)";
+  }}
+>
+  ⬇ EXPORT PDF
+</button>
           <button
   onClick={() => setChatOpen(true)}
   style={{
