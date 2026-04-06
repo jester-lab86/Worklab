@@ -91,7 +91,7 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
             <div key={kpi.label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", padding: "20px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${kpi.color}, transparent)` }} />
               <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px" }}>{kpi.label}</div>
-              <div style={{ fontFamily: "var(--font-syne)", fontSize: "32px", fontWeight: 800, color: kpi.color, lineHeight: 1 }}>{kpi.value}</div>
+              <div style={{ fontFamily: "var(--font-syne)", fontSize: "clamp(18px, 2.5vw, 32px)", fontWeight: 800, color: kpi.color, lineHeight: 1, wordBreak: "break-all" }}>{kpi.value}</div>
             </div>
           ))}
         </div>
