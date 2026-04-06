@@ -33,7 +33,8 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     tech_stack, tech_stack_grouped,
     features, phases, versions,
     current_progress, still_to_complete,
-    notes, blockers
+    notes, blockers,
+    priority = 'NORMAL',
   } = body;
 
   try {
@@ -43,14 +44,16 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
         tech_stack=$5, tech_stack_grouped=$6,
         features=$7, phases=$8, versions=$9,
         current_progress=$10, still_to_complete=$11::text,
-        notes=$12, blockers=$13, updated_at=NOW()
-      WHERE id=$14 RETURNING *`,
+        notes=$12, blockers=$13,
+        priority=$14, updated_at=NOW()
+      WHERE id=$15 RETURNING *`,
       [
         name, description, status, version,
         tech_stack, JSON.stringify(tech_stack_grouped),
         features, JSON.stringify(phases), JSON.stringify(versions),
         current_progress, JSON.stringify(still_to_complete),
-        notes, blockers, id
+        notes, blockers,
+        priority, id
       ]
     );
     const row = result.rows[0];

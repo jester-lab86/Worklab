@@ -1,53 +1,55 @@
-import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import { auth } from "@/lib/auth";
+import { NextResponse } from 'next/server'
+import { Pool } from 'pg'
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
 export async function GET() {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const result = await pool.query("SELECT * FROM projects ORDER BY created_at DESC");
-  return NextResponse.json(result.rows);
+  const client = await pool.connect()
+  try {
+    const result = await client.query(`
+      SELECT * FROM projects
+      ORDER BY
+        CASE priority
+          WHEN 'CRITICAL' THEN 1
+          WHEN 'HIGH'     THEN 2
+          WHEN 'NORMAL'   THEN 3
+          WHEN 'BACKLOG'  THEN 4
+          ELSE 5
+        END,
+        created_at DESC
+    `)
+    return NextResponse.json(result.rows)
+  } finally {
+    client.release()
+  }
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const client = await pool.connect()
+  try {
+    const body = await req.json()
+    const {
+      name,
+      description,
+      status,
+      version,
+      tech_stack,
+      features,
+      roadmap,
+      notes,
+      blockers,
+      priority = 'NORMAL',
+    } = body
 
-  const body = await req.json();
-  console.log("POST versions length:", body.versions?.length);
-  console.log("POST tech_stack_grouped length:", body.tech_stack_grouped?.length);
-
-  const {
-    name, description, status, version,
-    tech_stack, tech_stack_grouped,
-    features, phases, versions,
-    current_progress, still_to_complete,
-    notes, blockers
-  } = body;
-
-  const result = await pool.query(
-    `INSERT INTO projects (
-      name, description, status, version,
-      tech_stack, tech_stack_grouped,
-      features, phases, versions,
-      current_progress, still_to_complete,
-      notes, blockers
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-    RETURNING *`,
-    [
-      name, description, status, version,
-      tech_stack, JSON.stringify(tech_stack_grouped),
-      features, JSON.stringify(phases), JSON.stringify(versions),
-      current_progress, JSON.stringify(still_to_complete),
-notes, blockers
-    ]
-  );
-
-  return NextResponse.json(result.rows[0], { status: 201 });
+    const result = await client.query(
+      `INSERT INTO projects
+        (name, description, status, version, tech_stack, features, roadmap, notes, blockers, priority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING *`,
+      [name, description, status, version, tech_stack, features, roadmap, notes, blockers, priority]
+    )
+    return NextResponse.json(result.rows[0])
+  } finally {
+    client.release()
+  }
 }

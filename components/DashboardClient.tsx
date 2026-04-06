@@ -20,6 +20,23 @@ function getPct(project: Project) {
 
 export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"grid" | "priority">("grid");
+
+  const PRIORITY_ORDER = ["CRITICAL", "HIGH", "NORMAL", "BACKLOG"];
+
+  const priorityAccent = (priority: string) => {
+    if (priority === "CRITICAL") return "#ff3b5c";
+    if (priority === "HIGH") return "#ff8c00";
+    if (priority === "BACKLOG") return "#2a3a52";
+    return "var(--cyan)";
+  };
+
+  const priorityTagStyle = (priority: string): React.CSSProperties => {
+    if (priority === "CRITICAL") return { color: "#ff3b5c", background: "rgba(255,59,92,0.1)", border: "1px solid rgba(255,59,92,0.25)" };
+    if (priority === "HIGH") return { color: "#ff8c00", background: "rgba(255,140,0,0.1)", border: "1px solid rgba(255,140,0,0.25)" };
+    if (priority === "BACKLOG") return { color: "#3d5572", background: "rgba(42,58,82,0.4)", border: "1px solid #1e2d45" };
+    return { color: "var(--cyan)", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.2)" };
+  };
 
   const filtered = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,6 +84,20 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             onFocus={e => e.target.style.borderColor = "rgba(0,212,255,0.4)"}
             onBlur={e => e.target.style.borderColor = "var(--border)"}
           />
+          {/* VIEW TOGGLE */}
+          <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "2px", overflow: "hidden" }}>
+            {(["grid", "priority"] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                fontFamily: "var(--font-jetbrains)", fontSize: "10px", letterSpacing: "1px",
+                padding: "6px 12px", border: "none", cursor: "pointer", transition: "all 0.15s",
+                background: view === v ? "rgba(0,212,255,0.1)" : "transparent",
+                color: view === v ? "var(--cyan)" : "var(--muted)",
+                borderRight: v === "grid" ? "1px solid var(--border)" : "none",
+              }}>
+                {v.toUpperCase()}
+              </button>
+            ))}
+          </div>
           <a href="/api/export" download style={{
   padding: "7px 16px", background: "transparent",
   border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
@@ -194,10 +225,11 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                 {search ? `No projects match "${search}"` : "No projects yet. Hit + NEW to get started."}
               </p>
             </div>
-          ) : (
+          ) : view === "grid" ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
               {filtered.map(p => {
                 const pct = getPct(p);
+                const accent = priorityAccent(p.priority || "NORMAL");
                 return (
                   <Link key={p.id} href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
                     <div
@@ -209,29 +241,29 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                       onMouseEnter={e => e.currentTarget.style.borderColor = "var(--border2)"}
                       onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
                     >
-                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: "linear-gradient(90deg, var(--cyan), var(--purple))" }} />
+                      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${accent}, transparent)` }} />
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-  <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>
-    {p.name}
-  </div>
-  <span style={{
-    fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
-    padding: "2px 8px", borderRadius: "2px", fontFamily: "var(--font-syne)",
-    background: p.status === "launched" ? "rgba(16,185,129,0.1)" : p.status === "building" ? "rgba(245,158,11,0.1)" : "rgba(139,92,246,0.1)",
-    border: p.status === "launched" ? "1px solid rgba(16,185,129,0.3)" : p.status === "building" ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(139,92,246,0.3)",
-    color: p.status === "launched" ? "var(--green)" : p.status === "building" ? "var(--amber)" : "var(--purple)",
-  }}>
-    {p.status}
-  </span>
-</div>
+                        <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>
+                          {p.name}
+                        </div>
+                        <span style={{
+                          fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
+                          padding: "2px 8px", borderRadius: "2px", fontFamily: "var(--font-syne)",
+                          background: p.status === "launched" ? "rgba(16,185,129,0.1)" : p.status === "building" ? "rgba(245,158,11,0.1)" : "rgba(139,92,246,0.1)",
+                          border: p.status === "launched" ? "1px solid rgba(16,185,129,0.3)" : p.status === "building" ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(139,92,246,0.3)",
+                          color: p.status === "launched" ? "var(--green)" : p.status === "building" ? "var(--amber)" : "var(--purple)",
+                        }}>
+                          {p.status}
+                        </span>
+                      </div>
                       <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "14px", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                         {p.description || "No description yet."}
                       </div>
                       <div style={{ background: "var(--surface3)", height: "3px", borderRadius: "2px", marginBottom: "10px", overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: "2px", background: "linear-gradient(90deg, var(--cyan), var(--purple))", width: `${pct}%`, transition: "width 0.5s ease" }} />
+                        <div style={{ height: "100%", borderRadius: "2px", background: `linear-gradient(90deg, ${accent}, var(--purple))`, width: `${pct}%`, transition: "width 0.5s ease" }} />
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontFamily: "var(--font-syne)", fontSize: "20px", fontWeight: 800, color: pct === 100 ? "var(--green)" : "var(--cyan)" }}>
+                        <div style={{ fontFamily: "var(--font-syne)", fontSize: "20px", fontWeight: 800, color: pct === 100 ? "var(--green)" : accent }}>
                           {pct}%
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", justifyContent: "flex-end" }}>
@@ -247,12 +279,87 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                           ⚠ Active blockers
                         </div>
                       )}
+                      {/* Priority tag bottom left */}
+                      <div style={{ marginTop: "10px" }}>
+                        <span style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", padding: "2px 7px", borderRadius: "2px", fontFamily: "var(--font-jetbrains)", ...priorityTagStyle(p.priority || "NORMAL") }}>
+                          {(p.priority || "NORMAL")}
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 );
               })}
             </div>
+          ) : (
+            /* PRIORITY VIEW */
+            <div>
+              {PRIORITY_ORDER.map(tier => {
+                const tierProjects = filtered.filter(p => (p.priority || "NORMAL") === tier);
+                if (tierProjects.length === 0) return null;
+                const accent = priorityAccent(tier);
+                return (
+                  <div key={tier} style={{ marginBottom: "28px" }}>
+                    {/* Section divider */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: accent, fontFamily: "var(--font-jetbrains)" }}>
+                        {tier}
+                      </span>
+                      <div style={{ flex: 1, height: "1px", background: `linear-gradient(90deg, ${accent}44, transparent)` }} />
+                      <span style={{ fontSize: "10px", color: "var(--muted)" }}>{tierProjects.length}</span>
+                    </div>
+                    {/* Project rows */}
+                    {tierProjects.map(p => {
+                      const pct = getPct(p);
+                      return (
+                        <Link key={p.id} href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
+                          <div style={{
+                            background: "var(--surface)", border: "1px solid var(--border)",
+                            borderRadius: "4px", padding: "12px 16px", marginBottom: "6px",
+                            display: "flex", alignItems: "center", gap: "14px",
+                            cursor: "pointer", transition: "border-color 0.15s",
+                            position: "relative", overflow: "hidden",
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = "var(--border2)"}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
+                          >
+                            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "3px", background: accent }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+                                <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {p.name}
+                                </span>
+                                <span style={{
+                                  fontSize: "9px", fontWeight: 700, letterSpacing: "1px",
+                                  padding: "2px 7px", borderRadius: "2px", whiteSpace: "nowrap",
+                                  background: p.status === "launched" ? "rgba(16,185,129,0.1)" : p.status === "building" ? "rgba(245,158,11,0.1)" : "rgba(139,92,246,0.1)",
+                                  border: p.status === "launched" ? "1px solid rgba(16,185,129,0.3)" : p.status === "building" ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(139,92,246,0.3)",
+                                  color: p.status === "launched" ? "var(--green)" : p.status === "building" ? "var(--amber)" : "var(--purple)",
+                                }}>
+                                  {p.status}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "10px", color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {p.description || "No description"}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+                              <div style={{ width: "80px", background: "var(--surface3)", height: "3px", borderRadius: "2px", overflow: "hidden" }}>
+                                <div style={{ height: "100%", borderRadius: "2px", background: accent, width: `${pct}%` }} />
+                              </div>
+                              <span style={{ fontFamily: "var(--font-syne)", fontSize: "13px", fontWeight: 800, color: pct === 100 ? "var(--green)" : accent, minWidth: "36px", textAlign: "right" }}>
+                                {pct}%
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           )}
+          
         </main>
       </div>
     </div>
