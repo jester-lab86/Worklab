@@ -89,7 +89,12 @@ function Modal({ onClose, children }: { onClose: () => void; children: React.Rea
       <div style={{ background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: "4px", width: "100%", maxWidth: "480px", overflow: "hidden", animation: "slideUp 0.18s ease" }}>
         {children}
       </div>
-      <style>{`@keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      <style>{`
+  @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes barBreathe { 0% { box-shadow: 0 0 6px 1px rgba(0,212,255,0.5), 0 0 14px 3px rgba(123,79,255,0.3); } 100% { box-shadow: 0 0 10px 3px rgba(0,212,255,0.8), 0 0 24px 6px rgba(123,79,255,0.5), 0 0 4px 1px rgba(0,212,255,1); } }
+  @keyframes greenPulse { 0% { text-shadow: 0 0 5px rgba(16,185,129,0.7), 0 0 12px rgba(16,185,129,0.4); } 100% { text-shadow: 0 0 9px rgba(16,185,129,1), 0 0 22px rgba(16,185,129,0.8), 0 0 40px rgba(16,185,129,0.4); } }
+  @keyframes yellowPulse { 0% { box-shadow: 0 0 5px 1px rgba(255,224,51,0.6), 0 0 12px 3px rgba(245,197,0,0.4); } 100% { box-shadow: 0 0 8px 2px rgba(255,224,51,1), 0 0 20px 5px rgba(245,197,0,0.7), 0 0 36px 10px rgba(212,152,0,0.4); } }
+`}</style>
     </div>
   );
 }
@@ -586,8 +591,8 @@ if (data.versions?.length > 0) {
             <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>OVERALL PROGRESS</span>
             <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 800, color: "var(--cyan)" }}>{pct}%</span>
           </div>
-          <div style={{ background: "var(--surface3)", height: "6px", borderRadius: "3px", overflow: "hidden" }}>
-            <div style={{ height: "100%", background: "linear-gradient(90deg, var(--cyan), var(--purple))", width: `${pct}%`, transition: "width 0.5s ease", borderRadius: "3px" }} />
+          <div style={{ background: "var(--surface3)", height: "6px", borderRadius: "3px", overflow: "visible" }}>
+            <div style={{ height: "100%", background: "linear-gradient(90deg, var(--cyan), var(--purple))", width: `${pct}%`, transition: "width 0.5s ease", borderRadius: "3px", boxShadow: "0 0 8px 2px rgba(0,212,255,0.6), 0 0 18px 4px rgba(123,79,255,0.35), 0 0 4px 1px rgba(0,212,255,0.8)", animation: "barBreathe 2.6s ease-in-out infinite alternate" }} />
           </div>
         </div>
 
@@ -682,7 +687,7 @@ if (data.versions?.length > 0) {
                       <span onClick={() => toggleVersion(v.id)} style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 700, color: "var(--text)", flex: 1, cursor: "pointer" }}>v{v.number} — {v.title}</span>
                       {v.notes && <span title="Has notes" style={{ fontSize: "9px", color: "var(--muted)" }}>📝</span>}
                       <span style={{ fontSize: "9px", padding: "2px 8px", borderRadius: "2px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", background: `${vColor}18`, border: `1px solid ${vColor}40`, color: vColor }}>{computedStatus}</span>
-                      <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 800, color: vColor, minWidth: "40px", textAlign: "right" }}>{vPct}%</span>
+                      <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 800, color: vColor, minWidth: "40px", textAlign: "right", ...(computedStatus === "complete" ? { textShadow: "0 0 8px rgba(16,185,129,0.9), 0 0 20px rgba(16,185,129,0.6), 0 0 36px rgba(16,185,129,0.3)", animation: "greenPulse 2.4s ease-in-out infinite alternate" } : {}) }}>{vPct}%</span>
                       <InfoIcon onClick={() => openVersionModal(v)} color="var(--cyan)" />
                     </div>
 
@@ -809,7 +814,9 @@ if (data.versions?.length > 0) {
   <span style={{ fontSize: "8px", color: "var(--muted)" }}>{collapsedTaskGroups[vGroup.versionNumber] ? "▶" : "▼"}</span>
   <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--cyan)", textTransform: "uppercase" }}>v{vGroup.versionNumber}</span>
   <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>{vGroup.versionTitle}</span>
-  <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+  <div style={{ flex: 1, height: "3px", background: "var(--border)", borderRadius: "2px", overflow: "visible", position: "relative" }}>
+    <div style={{ position: "absolute", top: 0, left: 0, height: "3px", borderRadius: "2px", background: "linear-gradient(90deg, #d4a800, #ffe033, #fff176)", width: `${Math.round((vGroup.features.flatMap(f => f.tasks).filter(t => t.done).length / Math.max(vGroup.features.flatMap(f => f.tasks).length, 1)) * 100)}%`, boxShadow: "0 0 6px 1px rgba(255,224,51,0.8), 0 0 14px 3px rgba(245,197,0,0.55), 0 0 28px 6px rgba(212,152,0,0.3)", animation: "yellowPulse 2.2s ease-in-out infinite alternate" }} />
+  </div>
 </div>
                     {!collapsedTaskGroups[vGroup.versionNumber] && vGroup.features.map(fGroup => (
                       <div key={fGroup.featureId} style={{ marginBottom: "4px" }}>
