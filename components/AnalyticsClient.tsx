@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Project } from "@/types";
+import { useState } from "react";
+import AnalyticsChatPanel from "@/components/AnalyticsChatPanel";
 
 function getPct(project: Project): number {
   if (!project.versions || project.versions.length === 0) return 0;
@@ -43,6 +45,7 @@ function KpiValue({ value, color }: { value: string | number; color: string }) {
 }
 
 export default function AnalyticsClient({ projects }: { projects: Project[] }) {
+  const [chatOpen, setChatOpen] = useState(false);
   const total = projects.length;
   const launched = projects.filter(p => p.status === "launched").length;
   const building = projects.filter(p => p.status === "building").length;
@@ -102,9 +105,31 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
             ANALYTICS
           </span>
         </div>
-        <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px" }}>
-          <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS ANALYSED
-        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+  <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px" }}>
+    <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS ANALYSED
+  </span>
+  <button
+    onClick={() => setChatOpen(true)}
+    style={{
+      padding: "7px 16px",
+      background: "rgba(0,212,255,0.08)",
+      border: "1px solid rgba(0,212,255,0.3)",
+      color: "var(--cyan)",
+      fontFamily: "var(--font-jetbrains)",
+      fontSize: "11px",
+      letterSpacing: "1px",
+      borderRadius: "2px",
+      cursor: "pointer",
+      transition: "all 0.15s",
+    }}
+    onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,255,0.15)"}
+    onMouseLeave={e => e.currentTarget.style.background = "rgba(0,212,255,0.08)"}
+  >
+    ◈ PORTFOLIO INTEL
+  </button>
+  
+</div>
       </header>
 
       <div style={{ padding: "32px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -224,6 +249,12 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
         </div>
 
       </div>
+    {chatOpen && (
+        <AnalyticsChatPanel
+          projects={projects}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
     </div>
   );
 }
