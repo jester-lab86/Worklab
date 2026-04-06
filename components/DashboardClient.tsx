@@ -20,7 +20,7 @@ function getPct(project: Project) {
 
 export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "priority">("grid");
+  const [view, setView] = useState<"grid" | "priority">("priority");
 
   const PRIORITY_ORDER = ["CRITICAL", "HIGH", "NORMAL", "BACKLOG"];
 
@@ -38,11 +38,18 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
     return { color: "var(--cyan)", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.2)" };
   };
 
-  const filtered = projects.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.description?.toLowerCase().includes(search.toLowerCase()) ||
-    p.tech_stack?.some(t => t.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = projects
+    .filter(p =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase()) ||
+      p.tech_stack?.some(t => t.toLowerCase().includes(search.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const pctA = getPct(a);
+      const pctB = getPct(b);
+      if (pctB !== pctA) return pctB - pctA;
+      return a.name.localeCompare(b.name);
+    });
 
   const total = projects.length;
   const launched = projects.filter(p => p.status === "launched").length;
