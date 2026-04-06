@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         description,
         status,
         version,
-        tech_stack,
+        Array.isArray(tech_stack) ? tech_stack : [],
         JSON.stringify(tech_stack_grouped ?? []),
         JSON.stringify(features ?? []),
         JSON.stringify(phases ?? []),
