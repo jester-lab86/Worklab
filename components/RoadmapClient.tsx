@@ -41,7 +41,7 @@ export default function RoadmapClient({ projects }: { projects: Project[] }) {
         <header style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)",
-          background: "rgba(6,10,16,0.9)", backdropFilter: "blur(12px)",
+          background: "var(--surface)", backdropFilter: "blur(12px)",
           position: "sticky", top: 0, zIndex: 100,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

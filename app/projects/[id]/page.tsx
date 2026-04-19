@@ -502,7 +502,7 @@ export default function ProjectDetail() {
       <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", background: "var(--bg)" }}>
 
         {/* TOP BAR */}
-        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)", background: "rgba(6,10,16,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
+        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)", background: "var(--surface)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
             <button onClick={() => router.push("/dashboard")} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", whiteSpace: "nowrap", flexShrink: 0 }}>←</button>
             <div style={{ width: "1px", height: "20px", background: "var(--border)", flexShrink: 0 }} />

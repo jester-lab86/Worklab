@@ -167,7 +167,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
         <header style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)",
-          background: "rgba(6,10,16,0.9)", backdropFilter: "blur(12px)",
+          background: "var(--surface)", backdropFilter: "blur(12px)",
           position: "sticky", top: 0, zIndex: 100,
         }}>
           <div style={{ fontFamily: "var(--font-syne)", fontSize: "18px", fontWeight: 800, letterSpacing: "3px", color: "var(--cyan)", display: "flex", alignItems: "center", gap: "10px" }}>
