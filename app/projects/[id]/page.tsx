@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Project, Version, Feature, TechCategory } from "@/types";
 import ChatPanel from "@/components/ChatPanel";
 import { exportProjectPdf } from "@/lib/exportPdf";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -417,7 +418,9 @@ export default function ProjectDetail() {
 
         <button onClick={() => { exportProjectPdf(project); setMobileMenuOpen(false); }} style={{ padding: "12px", background: "transparent", border: "1px solid rgba(0,212,255,0.2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer", textAlign: "left" }}>⬇ EXPORT PDF</button>
         <button onClick={() => { setChatOpen(true); setMobileMenuOpen(false); }} style={{ padding: "12px", background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer", textAlign: "left" }}>◈ AI INTEL</button>
-        <button onClick={async () => { if (!confirm("Delete this project? This cannot be undone.")) return; await fetch(`/api/projects/${id}`, { method: "DELETE" }); router.push("/dashboard"); }} style={{ padding: "12px", background: "transparent", border: "1px solid rgba(239,68,68,0.2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer", textAlign: "left", marginTop: "auto" }}>DELETE PROJECT</button>
+        <ThemeToggle />
+        <button onClick={async () => {
+          if (!confirm("Delete this project? This cannot be undone.")) return; await fetch(`/api/projects/${id}`, { method: "DELETE" }); router.push("/dashboard"); }} style={{ padding: "12px", background: "transparent", border: "1px solid rgba(239,68,68,0.2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer", textAlign: "left", marginTop: "auto" }}>DELETE PROJECT</button>
       </div>
 
       {/* MODALS */}

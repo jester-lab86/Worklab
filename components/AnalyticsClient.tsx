@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Project } from "@/types";
 import { useState } from "react";
 import AnalyticsChatPanel from "@/components/AnalyticsChatPanel";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function getPct(project: Project): number {
   if (!project.versions || project.versions.length === 0) return 0;
@@ -110,6 +111,7 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
             <span className="analytics-count" style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px", whiteSpace: "nowrap" }}>
               <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS
             </span>
+            <ThemeToggle />
             <button
               onClick={() => setChatOpen(true)}
               style={{

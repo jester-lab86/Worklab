@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Project } from "@/types";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function getPct(project: Project) {
   if (project.versions && project.versions.length > 0) {
@@ -94,7 +95,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
       {/* MOBILE SLIDE-IN MENU */}
       <div style={{
         position: "fixed", top: 0, right: 0, bottom: 0, width: "280px",
-        background: "#060a10", borderLeft: "1px solid var(--border)",
+        background: "var(--bg)", borderLeft: "1px solid var(--border)",
         zIndex: 201, transform: menuOpen ? "translateX(0)" : "translateX(100%)",
         transition: "transform 0.25s ease", padding: "24px 20px",
         display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto",
@@ -123,6 +124,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
         }}>
           ⬇ EXPORT
         </a>
+        <ThemeToggle />
         <button
           onClick={() => signOut({ callbackUrl: "/auth/signin" })}
           style={{
@@ -215,6 +217,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             <Link href="/analytics" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ANALYTICS</Link>
             <Link href="/roadmap" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ROADMAP</Link>
             <a href="/api/export" download style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>⬇ EXPORT</a>
+           <ThemeToggle />
             <Link href="/projects/new" style={{ padding: "7px 16px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>+ NEW</Link>
             <button onClick={() => signOut({ callbackUrl: "/auth/signin" })} style={{ padding: "7px 16px", background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--red)"; e.currentTarget.style.color = "var(--red)"; }}

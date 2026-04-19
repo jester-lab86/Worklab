@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Project } from "@/types";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function getPhaseColor(status: string) {
   if (status === "complete" || status === "completed") return "#10b981";
@@ -62,10 +63,13 @@ export default function RoadmapClient({ projects }: { projects: Project[] }) {
               PORTFOLIO ROADMAP
             </span>
           </div>
-          <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px", whiteSpace: "nowrap" }}>
-            <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{projects.length}</span>
-            <span className="ops-label"> ACTIVE OPERATIONS</span>
-          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+  <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px", whiteSpace: "nowrap" }}>
+    <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{projects.length}</span>
+    <span className="ops-label"> ACTIVE OPERATIONS</span>
+  </div>
+  <ThemeToggle />
+</div>
         </header>
 
         <div style={{ padding: "24px 16px" }}>

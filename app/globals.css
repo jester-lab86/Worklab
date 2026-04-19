@@ -21,6 +21,23 @@
   --font-jetbrains: 'JetBrains Mono', monospace;
 }
 
+[data-theme="light"] {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #e8eef5;
+  --surface3: #dde5ef;
+  --border: #c8d6e5;
+  --border2: #a8bdd0;
+  --cyan: #0099cc;
+  --cyan-dim: rgba(0,153,204,0.08);
+  --green: #059669;
+  --amber: #d97706;
+  --red: #dc2626;
+  --purple: #7c3aed;
+  --text: #0d1f2d;
+  --muted: #5a7a94;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
@@ -31,9 +48,14 @@ body {
   font-size: 13px;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* SCANLINE OVERLAY */
+/* SCANLINE OVERLAY — dark mode only */
+[data-theme="light"] body::after {
+  display: none;
+}
+
 body::after {
   content: '';
   position: fixed;
@@ -57,6 +79,13 @@ body::before {
   background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
+  transition: opacity 0.3s ease;
+}
+
+[data-theme="light"] body::before {
+  background-image:
+    linear-gradient(rgba(0,100,150,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,100,150,0.06) 1px, transparent 1px);
 }
 
 /* SCROLLBAR */
@@ -71,17 +100,12 @@ body::before {
 
 /* MOBILE */
 @media (max-width: 768px) {
-  /* Prevent iOS auto-zoom on input focus */
   input, textarea, select {
     font-size: 16px !important;
   }
-
-  /* Prevent horizontal overflow */
   body {
     overflow-x: hidden;
   }
-
-  /* Nothing bleeds past viewport */
   * {
     max-width: 100%;
   }
