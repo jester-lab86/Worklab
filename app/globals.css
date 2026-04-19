@@ -68,3 +68,21 @@ body::before {
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 .fade-up { animation: fadeUp 0.35s ease both; }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  /* Prevent iOS auto-zoom on input focus */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* Prevent horizontal overflow */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Nothing bleeds past viewport */
+  * {
+    max-width: 100%;
+  }
+}
