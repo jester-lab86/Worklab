@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
-import { rateLimit } from "@/lib/rateLimit"
+import { rateLimit } from "@/lib/ratelimit"
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+})
 export async function GET(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
   if (!rateLimit(ip)) {
