@@ -50,6 +50,7 @@ export type Project = {
   phases: Phase[];
   versions: Version[];
   priority?: string;
+  project_type?: string;
   current_progress: string;
   still_to_complete: Task[];
   notes: string;

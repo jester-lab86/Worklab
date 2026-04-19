@@ -44,12 +44,13 @@ export async function POST(req: Request) {
       notes,
       blockers,
       priority = 'NORMAL',
+      project_type = 'software',
     } = body
 
     const result = await client.query(
       `INSERT INTO projects
-        (name, description, status, version, tech_stack, tech_stack_grouped, features, phases, versions, current_progress, still_to_complete, notes, blockers, priority)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        (name, description, status, version, tech_stack, tech_stack_grouped, features, phases, versions, current_progress, still_to_complete, notes, blockers, priority, project_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         name,
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
         notes,
         blockers,
         priority,
+        project_type,
       ]
     )
     return NextResponse.json(result.rows[0])

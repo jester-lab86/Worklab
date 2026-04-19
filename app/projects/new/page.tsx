@@ -4,6 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseProjectMarkdown } from "@/lib/parseMarkdown";
 
+const PROJECT_TYPES = [
+  { value: "software", label: "💻 Software", },
+  { value: "mechanical", label: "🔧 Mechanical", },
+  { value: "home", label: "🏠 Home", },
+  { value: "other", label: "⚙️ Other", },
+];
+
 export default function NewProject() {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
@@ -11,6 +18,7 @@ export default function NewProject() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragover, setDragover] = useState(false);
+  const [projectType, setProjectType] = useState("software");
 
   async function handleGenerate() {
     if (!prompt.trim()) return;
@@ -18,7 +26,7 @@ export default function NewProject() {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, project_type: projectType }),
     });
     const data = await res.json();
     setMarkdown(data.markdown);
@@ -33,7 +41,7 @@ export default function NewProject() {
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(parsed),
+      body: JSON.stringify({ ...parsed, project_type: projectType }),
     });
     if (res.ok) {
       router.push("/dashboard");
@@ -75,9 +83,38 @@ export default function NewProject() {
         <h1 style={{ fontFamily: "var(--font-syne)", fontSize: "28px", fontWeight: 800, color: "var(--text)", marginBottom: "8px" }}>
           Add Project
         </h1>
-        <p style={{ fontSize: "12px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "40px" }}>
+        <p style={{ fontSize: "12px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "24px" }}>
           Drop a .md file, paste a brain dump, or use AI to organize your notes.
         </p>
+
+        {/* PROJECT TYPE SELECTOR */}
+        <div style={{ marginBottom: "32px" }}>
+          <label style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "10px" }}>
+            Project Type
+          </label>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {PROJECT_TYPES.map(type => (
+              <button
+                key={type.value}
+                onClick={() => setProjectType(type.value)}
+                style={{
+                  padding: "8px 18px",
+                  background: projectType === type.value ? "var(--cyan-dim)" : "var(--surface)",
+                  border: `1px solid ${projectType === type.value ? "rgba(0,212,255,0.5)" : "var(--border)"}`,
+                  color: projectType === type.value ? "var(--cyan)" : "var(--muted)",
+                  fontFamily: "var(--font-jetbrains)",
+                  fontSize: "12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* DROP ZONE */}
         <div

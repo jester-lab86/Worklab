@@ -18,9 +18,17 @@ function getPct(project: Project) {
   return Math.round((done / project.phases.length) * 100);
 }
 
+function getTypeIcon(type: string) {
+  if (type === "mechanical") return "🔧";
+  if (type === "home") return "🏠";
+  if (type === "other") return "⚙️";
+  return "💻";
+}
+
 export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "priority">("priority");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const PRIORITY_ORDER = ["CRITICAL", "HIGH", "NORMAL", "BACKLOG"];
 
@@ -39,11 +47,14 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   };
 
   const filtered = projects
-    .filter(p =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.description?.toLowerCase().includes(search.toLowerCase()) ||
-      p.tech_stack?.some(t => t.toLowerCase().includes(search.toLowerCase()))
-    )
+    .filter(p => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.description?.toLowerCase().includes(search.toLowerCase()) ||
+        p.tech_stack?.some(t => t.toLowerCase().includes(search.toLowerCase()));
+      const matchesType = typeFilter === "all" || (p.project_type || "software") === typeFilter;
+      return matchesSearch && matchesType;
+    })
     .sort((a, b) => {
       const pctA = getPct(a);
       const pctB = getPct(b);
@@ -57,6 +68,14 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   const concept = projects.filter(p => p.status === "concept").length;
   const avgPct = total ? Math.round(projects.reduce((s, p) => s + getPct(p), 0) / total) : 0;
   const blocked = projects.filter(p => p.blockers && p.blockers.trim().length > 0).length;
+
+  const TYPE_FILTERS = [
+    { value: "all", label: "All" },
+    { value: "software", label: "💻" },
+    { value: "mechanical", label: "🔧" },
+    { value: "home", label: "🏠" },
+    { value: "other", label: "⚙️" },
+  ];
 
   return (
     <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -77,6 +96,26 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS ·{" "}
             <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{avgPct}%</span> AVG
           </span>
+
+          {/* TYPE FILTER */}
+          <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "2px", overflow: "hidden" }}>
+            {TYPE_FILTERS.map((f, i) => (
+              <button
+                key={f.value}
+                onClick={() => setTypeFilter(f.value)}
+                style={{
+                  fontFamily: "var(--font-jetbrains)", fontSize: "11px",
+                  padding: "6px 10px", border: "none", cursor: "pointer", transition: "all 0.15s",
+                  background: typeFilter === f.value ? "rgba(0,212,255,0.1)" : "transparent",
+                  color: typeFilter === f.value ? "var(--cyan)" : "var(--muted)",
+                  borderRight: i < TYPE_FILTERS.length - 1 ? "1px solid var(--border)" : "none",
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {/* SEARCH */}
           <input
             value={search}
@@ -91,6 +130,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             onFocus={e => e.target.style.borderColor = "rgba(0,212,255,0.4)"}
             onBlur={e => e.target.style.borderColor = "var(--border)"}
           />
+
           {/* VIEW TOGGLE */}
           <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "2px", overflow: "hidden" }}>
             {(["grid", "priority"] as const).map(v => (
@@ -105,38 +145,39 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
               </button>
             ))}
           </div>
+
           <Link href="/analytics" style={{
-  padding: "7px 16px", background: "transparent",
-  border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
-  fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
-  borderRadius: "2px", textDecoration: "none",
-}}>
-  ◈ ANALYTICS
-</Link>
+            padding: "7px 16px", background: "transparent",
+            border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
+            fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+            borderRadius: "2px", textDecoration: "none",
+          }}>
+            ◈ ANALYTICS
+          </Link>
           <Link href="/roadmap" style={{
-  padding: "7px 16px", background: "transparent",
-  border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
-  fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
-  borderRadius: "2px", textDecoration: "none",
-}}>
-  ◈ ROADMAP
-</Link>
+            padding: "7px 16px", background: "transparent",
+            border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
+            fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+            borderRadius: "2px", textDecoration: "none",
+          }}>
+            ◈ ROADMAP
+          </Link>
           <a href="/api/export" download style={{
-  padding: "7px 16px", background: "transparent",
-  border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
-  fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
-  borderRadius: "2px", textDecoration: "none",
-}}>
-  ⬇ EXPORT
-</a>
-<Link href="/projects/new" style={{
-  padding: "7px 16px", background: "var(--cyan-dim)",
-  border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
-  fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
-  borderRadius: "2px", textDecoration: "none",
-}}>
-  + NEW
-</Link>
+            padding: "7px 16px", background: "transparent",
+            border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
+            fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+            borderRadius: "2px", textDecoration: "none",
+          }}>
+            ⬇ EXPORT
+          </a>
+          <Link href="/projects/new" style={{
+            padding: "7px 16px", background: "var(--cyan-dim)",
+            border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)",
+            fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px",
+            borderRadius: "2px", textDecoration: "none",
+          }}>
+            + NEW
+          </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/auth/signin" })}
             style={{
@@ -193,6 +234,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                       e.currentTarget.style.borderLeftColor = "transparent";
                     }}
                   >
+                    <span style={{ fontSize: "13px" }}>{getTypeIcon(p.project_type || "software")}</span>
                     <span style={{ fontFamily: "var(--font-syne)", fontSize: "13px", fontWeight: 600, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--text)" }}>
                       {p.name}
                     </span>
@@ -266,8 +308,11 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                     >
                       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${accent}, transparent)` }} />
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                        <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>
-                          {p.name}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "16px" }}>{getTypeIcon(p.project_type || "software")}</span>
+                          <span style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>
+                            {p.name}
+                          </span>
                         </div>
                         <span style={{
                           fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
@@ -302,7 +347,6 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                           ⚠ Active blockers
                         </div>
                       )}
-                      {/* Priority tag bottom left */}
                       <div style={{ marginTop: "10px" }}>
                         <span style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "1px", padding: "2px 7px", borderRadius: "2px", fontFamily: "var(--font-jetbrains)", ...priorityTagStyle(p.priority || "NORMAL") }}>
                           {(p.priority || "NORMAL")}
@@ -322,7 +366,6 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                 const accent = priorityAccent(tier);
                 return (
                   <div key={tier} style={{ marginBottom: "28px" }}>
-                    {/* Section divider */}
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
                       <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "2px", color: accent, fontFamily: "var(--font-jetbrains)" }}>
                         {tier}
@@ -330,7 +373,6 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                       <div style={{ flex: 1, height: "1px", background: `linear-gradient(90deg, ${accent}44, transparent)` }} />
                       <span style={{ fontSize: "10px", color: "var(--muted)" }}>{tierProjects.length}</span>
                     </div>
-                    {/* Project rows */}
                     {tierProjects.map(p => {
                       const pct = getPct(p);
                       return (
@@ -346,6 +388,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
                             onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
                           >
                             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "3px", background: accent }} />
+                            <span style={{ fontSize: "16px", marginLeft: "8px" }}>{getTypeIcon(p.project_type || "software")}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
                                 <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -382,7 +425,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
               })}
             </div>
           )}
-          
+
         </main>
       </div>
     </div>

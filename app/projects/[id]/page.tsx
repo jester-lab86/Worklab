@@ -670,9 +670,10 @@ if (data.versions?.length > 0) {
             {/* TECH STACK */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
               <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", color: "var(--purple)" }}>TECH STACK</span>
-                <button onClick={() => setEditingTechStack(!editingTechStack)} style={{ background: "none", border: "none", color: "var(--purple)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>{editingTechStack ? "DONE" : "EDIT"}</button>
-              </div>
+<span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", color: "var(--purple)" }}>
+  {project.project_type && project.project_type !== "software" ? "RESOURCES" : "TECH STACK"}
+</span>
+<button onClick={() => setEditingTechStack(!editingTechStack)} style={{ background: "none", border: "none", color: "var(--purple)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>{editingTechStack ? "DONE" : "EDIT"}</button>              </div>
               <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
                 {(project.tech_stack_grouped || []).map((cat, i) => (
                   <div key={i}>
