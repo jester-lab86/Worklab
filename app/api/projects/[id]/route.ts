@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import { auth } from "@/lib/auth";
+import { rateLimit } from "@/lib/ratelimit";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!rateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -23,6 +29,11 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
 }
 
 export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!rateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -69,7 +80,12 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   }
 }
 
-export async function DELETE(_req: Request, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!rateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

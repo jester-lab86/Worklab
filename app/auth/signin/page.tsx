@@ -22,6 +22,7 @@ export default function SignIn() {
   const [bootProgress, setBootProgress] = useState(0);
   const [bootMessages, setBootMessages] = useState<string[]>([]);
   const [currentMessage, setCurrentMessage] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
     if (!booting) return;
@@ -46,13 +47,54 @@ export default function SignIn() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isLocked) return;
+
+    // Step 1 — check if IP is already locked before attempting login
+    try {
+      const res = await fetch("/api/auth/ip");
+      const data = await res.json();
+
+      if (data.locked) {
+        setIsLocked(true);
+        setError(`Too many failed attempts. Try again in ${data.mins} minute${data.mins === 1 ? "" : "s"}.`);
+        return;
+      }
+    } catch {
+      // fall through
+    }
+
+    // Step 2 — attempt login
     const result = await signIn("credentials", {
       password,
       redirect: false,
     });
-    if (result?.ok) {
-      window.location.href = "/dashboard";
-    } else {
+
+    // Step 3 — report success or failure to lockout tracker
+    try {
+      await fetch("/api/auth/ip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ success: result?.ok ?? false }),
+      });
+    } catch {
+      // fall through
+    }
+
+    if (result?.ok && !result?.error) {
+  window.location.href = "/dashboard";
+} else {
+      // Step 4 — re-check lockout status after this attempt
+      try {
+        const res = await fetch("/api/auth/ip");
+        const data = await res.json();
+        if (data.locked) {
+          setIsLocked(true);
+          setError(`Too many failed attempts. Try again in ${data.mins} minute${data.mins === 1 ? "" : "s"}.`);
+          return;
+        }
+      } catch {
+        // fall through
+      }
       setError("Invalid password. Access denied.");
     }
   }
@@ -64,7 +106,6 @@ export default function SignIn() {
         flexDirection: "column", alignItems: "center", justifyContent: "center",
         fontFamily: "var(--font-jetbrains)", padding: "40px",
       }}>
-        {/* Logo */}
         <div style={{
           fontFamily: "var(--font-syne)", fontSize: "48px", fontWeight: 800,
           letterSpacing: "8px", color: "#00d4ff", marginBottom: "48px",
@@ -73,7 +114,6 @@ export default function SignIn() {
           FORGE
         </div>
 
-        {/* Boot messages */}
         <div style={{
           width: "100%", maxWidth: "480px", marginBottom: "24px",
           height: "220px", overflow: "hidden", display: "flex",
@@ -94,7 +134,6 @@ export default function SignIn() {
           ))}
         </div>
 
-        {/* Progress bar */}
         <div style={{ width: "100%", maxWidth: "480px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
             <span style={{ fontSize: "10px", color: "rgba(0,212,255,0.4)", letterSpacing: "2px" }}>
@@ -139,20 +178,33 @@ export default function SignIn() {
           placeholder="Enter password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          disabled={isLocked}
           style={{
-            background: "#0b1118", border: "1px solid rgba(0,212,255,0.2)",
-            color: "#fff", padding: "12px 16px", borderRadius: "2px",
+            background: "#0b1118", border: `1px solid ${isLocked ? "rgba(239,68,68,0.3)" : "rgba(0,212,255,0.2)"}`,
+            color: isLocked ? "rgba(255,255,255,0.3)" : "#fff", padding: "12px 16px", borderRadius: "2px",
             fontFamily: "var(--font-jetbrains)", fontSize: "13px", outline: "none",
+            cursor: isLocked ? "not-allowed" : "text",
           }}
         />
-        {error && <p style={{ color: "#ef4444", fontSize: "11px", letterSpacing: "0.5px" }}>{error}</p>}
-        <button type="submit" style={{
-          background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.3)",
-          color: "#00d4ff", fontFamily: "var(--font-syne)", fontSize: "12px",
-          fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase",
-          padding: "12px", borderRadius: "2px", cursor: "pointer",
-        }}>
-          ACCESS FORGE
+        {error && (
+          <p style={{ color: "#ef4444", fontSize: "11px", letterSpacing: "0.5px" }}>
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={isLocked}
+          style={{
+            background: isLocked ? "rgba(239,68,68,0.05)" : "rgba(0,212,255,0.08)",
+            border: `1px solid ${isLocked ? "rgba(239,68,68,0.3)" : "rgba(0,212,255,0.3)"}`,
+            color: isLocked ? "#ef4444" : "#00d4ff",
+            fontFamily: "var(--font-syne)", fontSize: "12px",
+            fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase",
+            padding: "12px", borderRadius: "2px",
+            cursor: isLocked ? "not-allowed" : "pointer",
+          }}
+        >
+          {isLocked ? "ACCESS LOCKED" : "ACCESS FORGE"}
         </button>
       </form>
     </main>

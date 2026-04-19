@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { auth } from "@/lib/auth";
+import { rateLimit } from "@/lib/ratelimit";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -116,6 +117,11 @@ Any blockers or issues. If none write "None currently."`;
 }
 
 export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!rateLimit(ip, 10, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const session = await auth();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

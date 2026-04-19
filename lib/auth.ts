@@ -10,10 +10,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("=== AUTHORIZE CALLED ===");
+        console.log("received:", JSON.stringify(credentials?.password));
+        console.log("expected:", JSON.stringify(process.env.FORGE_PASSWORD));
+        console.log("match:", credentials?.password === process.env.FORGE_PASSWORD);
+
         if (credentials?.password === process.env.FORGE_PASSWORD) {
           return { id: "1", name: "Forge User" };
         }
-        return null;
+        throw new Error("Invalid password.");
       },
     }),
   ],

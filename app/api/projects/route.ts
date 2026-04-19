@@ -1,10 +1,15 @@
-// v2
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
+import { rateLimit } from "@/lib/rateLimit"
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown"
+  if (!rateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+  }
+
   const client = await pool.connect()
   try {
     const result = await client.query(`
@@ -25,10 +30,15 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown"
+  if (!rateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+  }
+
   const client = await pool.connect()
   try {
-    const body = await req.json()
+    const body = await request.json()
     const {
       name,
       description,

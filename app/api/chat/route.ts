@@ -1,9 +1,15 @@
 import { auth } from "@/lib/auth";
+import { rateLimit } from "@/lib/ratelimit";
 import Groq from "groq-sdk";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!rateLimit(ip, 20, 60_000)) {
+    return new Response("Too many requests", { status: 429 });
+  }
+
   const session = await auth();
   if (!session) return new Response("Unauthorized", { status: 401 });
 

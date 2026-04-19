@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import IdleLogout from "@/components/IdleLogout";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -27,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${syne.variable} ${jetbrainsMono.variable}`}>
+        <IdleLogout />
         {children}
       </body>
     </html>
