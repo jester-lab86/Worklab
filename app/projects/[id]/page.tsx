@@ -8,6 +8,7 @@ import { exportProjectPdf } from "@/lib/exportPdf";
 import ThemeToggle from "@/components/ThemeToggle";
 import { logActivity } from "@/lib/logActivity";
 import ActivityFeed from "@/components/ActivityFeed";
+import DependenciesPanel from "@/components/DependenciesPanel";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -79,6 +80,7 @@ const FEATURE_STATUS_COLORS: Record<string, string> = {
 const VERSION_STATUS_COLORS: Record<string, string> = {
   complete: "var(--green)", "in-progress": "var(--cyan)", planned: "var(--muted)",
 };
+;
 
 function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   useEffect(() => {
@@ -174,6 +176,8 @@ export default function ProjectDetail() {
   const [bulkMode, setBulkMode] = useState(false);
 const [bulkText, setBulkText] = useState("");
 const [bulkFeatureId, setBulkFeatureId] = useState<string>("unassigned");
+const [allProjects, setAllProjects] = useState<{ id: number; name: string }[]>([]);
+const [activityCollapsed, setActivityCollapsed] = useState(true);
 
   function openVersionModal(v: Version) {
     setVersionModal(v); setModalVersionNumber(v.number); setModalVersionTitle(v.title);
@@ -210,6 +214,12 @@ const [bulkFeatureId, setBulkFeatureId] = useState<string>("unassigned");
           setCollapsedTaskGroups(collapsed);
         }
       });
+
+    // ADD THIS — fetch all projects for the dependencies dropdown
+    fetch("/api/projects")
+      .then(r => r.json())
+      .then(data => setAllProjects(data.map((p: any) => ({ id: p.id, name: p.name }))));
+
   }, [id]);
 
   async function patchProject(updated: Project, updatedTasks?: Task[]) {
@@ -962,13 +972,18 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
                   {totalTasks === 0 && <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>All tasks complete ✓</div>}
                 </div>}
               </div> {/* ← add this closing div */}
+              {/* DEPENDENCIES */}
+<DependenciesPanel projectId={id as string} allProjects={allProjects} />
 {/* ACTIVITY LOG */}
 <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-  <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", color: "var(--amber)" }}>ACTIVITY LOG</span>
+  <div onClick={() => setActivityCollapsed(p => !p)} style={{ padding: "14px 20px", borderBottom: activityCollapsed ? "none" : "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <span style={{ color: "var(--muted)", fontSize: "10px" }}>{activityCollapsed ? "▶" : "▼"}</span>
+      <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", color: "var(--amber)" }}>ACTIVITY LOG</span>
+    </div>
     <span style={{ fontSize: "10px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>last 30 events</span>
   </div>
-  <ActivityFeed projectId={id as string} limit={30} compact />
+  {!activityCollapsed && <ActivityFeed projectId={id as string} limit={30} compact />}
 </div>
               {/* NOTES */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
