@@ -6,6 +6,8 @@ import { Project, Version, Feature, TechCategory } from "@/types";
 import ChatPanel from "@/components/ChatPanel";
 import { exportProjectPdf } from "@/lib/exportPdf";
 import ThemeToggle from "@/components/ThemeToggle";
+import { logActivity } from "@/lib/logActivity";
+import ActivityFeed from "@/components/ActivityFeed";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -243,23 +245,36 @@ export default function ProjectDetail() {
     setTaskModal(null);
   }
   async function saveNotes() {
-    if (!project) return;
-    setSaving(true);
-    await patchProject({ ...project, notes, blockers });
-    setSaving(false); setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+  if (!project) return;
+  setSaving(true);
+  await patchProject({ ...project, notes, blockers });
+  await logActivity(project.id, project.name, "notes_saved", "Notes & blockers updated");
+  setSaving(false); setSaved(true);
+  setTimeout(() => setSaved(false), 2000);
+}
 
   function toggleVersion(vid: string) { setExpandedVersions(prev => ({ ...prev, [vid]: !prev[vid] })); }
   async function togglePhase(vid: string, pid: string) {
-    if (!project) return;
-    await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, phases: v.phases.map(p => p.id === pid ? { ...p, completed: !p.completed } : p) } : v) });
-  }
+  if (!project) return;
+  const version = project.versions.find(v => v.id === vid);
+  const phase = version?.phases.find(p => p.id === pid);
+  const nowComplete = !phase?.completed;
+  await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, phases: v.phases.map(p => p.id === pid ? { ...p, completed: !p.completed } : p) } : v) });
+  await logActivity(project.id, project.name,
+    nowComplete ? "phase_completed" : "phase_uncompleted",
+    `${phase?.title || "Phase"} marked ${nowComplete ? "complete" : "incomplete"}`
+  );
+}
   async function toggleFeatureStatus(vid: string, fid: string) {
-    if (!project) return;
-    const cycle: Feature["status"][] = ["planned", "in-progress", "complete"];
-    await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, features: v.features.map(f => f.id !== fid ? f : { ...f, status: cycle[(cycle.indexOf(f.status) + 1) % cycle.length] }) } : v) });
-  }
+  if (!project) return;
+  const cycle: Feature["status"][] = ["planned", "in-progress", "complete"];
+  const feature = project.versions.find(v => v.id === vid)?.features.find(f => f.id === fid);
+  const nextStatus = cycle[(cycle.indexOf(feature?.status || "planned") + 1) % cycle.length];
+  await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, features: v.features.map(f => f.id !== fid ? f : { ...f, status: nextStatus }) } : v) });
+  await logActivity(project.id, project.name, "feature_updated",
+    `${feature?.name || "Feature"} → ${nextStatus}`
+  );
+}
   async function addFeature(vid: string) {
     if (!project || !newFeatureName.trim()) return;
     await patchProject({ ...project, versions: project.versions.map(v => v.id === vid ? { ...v, features: [...v.features, { id: uid(), name: newFeatureName.trim(), status: newFeatureStatus }] } : v) });
@@ -288,13 +303,25 @@ export default function ProjectDetail() {
     setExpandedVersions(prev => ({ ...prev, [newV.id]: true }));
   }
   async function addTask() {
-    if (!newTaskDesc.trim()) return;
-    const featureId = newTaskFeatureId === "unassigned" ? null : newTaskFeatureId;
-    await saveTasks([...tasks, { id: uid(), description: newTaskDesc.trim(), featureId, done: false, notes: "" }]);
-    setNewTaskDesc(""); setNewTaskFeatureId("unassigned"); setAddingTask(false);
-  }
-  async function toggleTask(taskId: string) { await saveTasks(tasks.map(t => t.id === taskId ? { ...t, done: !t.done } : t)); }
-  async function deleteTask(taskId: string) { await saveTasks(tasks.filter(t => t.id !== taskId)); }
+  if (!newTaskDesc.trim()) return;
+  const featureId = newTaskFeatureId === "unassigned" ? null : newTaskFeatureId;
+  await saveTasks([...tasks, { id: uid(), description: newTaskDesc.trim(), featureId, done: false, notes: "" }]);
+  await logActivity(project!.id, project!.name, "task_added", newTaskDesc.trim());
+  setNewTaskDesc(""); setNewTaskFeatureId("unassigned"); setAddingTask(false);
+}
+async function toggleTask(taskId: string) {
+  const task = tasks.find(t => t.id === taskId);
+  const nowDone = !task?.done;
+  await saveTasks(tasks.map(t => t.id === taskId ? { ...t, done: !t.done } : t));
+  await logActivity(project!.id, project!.name,
+    nowDone ? "task_completed" : "task_uncompleted",
+    task?.description || "Task"
+  );
+}  async function deleteTask(taskId: string) {
+  const task = tasks.find(t => t.id === taskId);
+  await saveTasks(tasks.filter(t => t.id !== taskId));
+  await logActivity(project!.id, project!.name, "task_deleted", task?.description || "Task");
+}
 
   function handleDragStart(featureId: string | null, index: number) { dragItem.current = { featureId, index }; }
   function handleDragEnter(featureId: string | null, index: number) { dragOverItem.current = { featureId, index }; }
@@ -401,7 +428,9 @@ export default function ProjectDetail() {
           <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "8px" }}>Status</div>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {(["concept", "building", "launched"] as const).map(s => (
-              <button key={s} onClick={async () => { await patchProject({ ...project, status: s }); setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", fontSize: "10px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer", fontFamily: "var(--font-jetbrains)", background: project.status === s ? `${STATUS_COLORS[s]}20` : "transparent", border: `1px solid ${project.status === s ? STATUS_COLORS[s] : "var(--border)"}`, color: project.status === s ? STATUS_COLORS[s] : "var(--muted)" }}>{s}</button>
+              <button key={s} onClick={async () => { await patchProject({ ...project, status: s });
+await logActivity(project.id, project.name, "status_changed", `Status → ${s}`);
+setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", fontSize: "10px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer", fontFamily: "var(--font-jetbrains)", background: project.status === s ? `${STATUS_COLORS[s]}20` : "transparent", border: `1px solid ${project.status === s ? STATUS_COLORS[s] : "var(--border)"}`, color: project.status === s ? STATUS_COLORS[s] : "var(--muted)" }}>{s}</button>
             ))}
           </div>
         </div>
@@ -550,7 +579,9 @@ export default function ProjectDetail() {
               {editingStatus && (
                 <div style={{ position: "absolute", top: "32px", right: 0, background: "var(--surface2)", border: "1px solid var(--border2)", borderRadius: "4px", overflow: "hidden", zIndex: 200, minWidth: "140px" }}>
                   {(["concept", "building", "launched"] as const).map(s => (
-                    <button key={s} onClick={async () => { await patchProject({ ...project, status: s }); setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left", background: project.status === s ? "var(--cyan-dim)" : "transparent", border: "none", color: project.status === s ? "var(--cyan)" : "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer" }}>{s}</button>
+                    <button key={s} onClick={async () => { await patchProject({ ...project, status: s });
+await logActivity(project.id, project.name, "status_changed", `Status → ${s}`);
+setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "10px 16px", textAlign: "left", background: project.status === s ? "var(--cyan-dim)" : "transparent", border: "none", color: project.status === s ? "var(--cyan)" : "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer" }}>{s}</button>
                   ))}
                 </div>
               )}
@@ -866,7 +897,14 @@ export default function ProjectDetail() {
                   {totalTasks === 0 && <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>All tasks complete ✓</div>}
                 </div>}
               </div>
-
+{/* ACTIVITY LOG */}
+<div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
+  <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px", color: "var(--amber)" }}>ACTIVITY LOG</span>
+    <span style={{ fontSize: "10px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>last 30 events</span>
+  </div>
+  <ActivityFeed projectId={id as string} limit={30} compact />
+</div>
               {/* NOTES */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
                 <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>NOTES</div>
