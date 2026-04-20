@@ -171,6 +171,9 @@ export default function ProjectDetail() {
   const [modalTaskNotes, setModalTaskNotes] = useState("");
   const [modalTaskFeatureId, setModalTaskFeatureId] = useState<string>("unassigned");
   const [modalTaskDone, setModalTaskDone] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+const [bulkText, setBulkText] = useState("");
+const [bulkFeatureId, setBulkFeatureId] = useState<string>("unassigned");
 
   function openVersionModal(v: Version) {
     setVersionModal(v); setModalVersionNumber(v.number); setModalVersionTitle(v.title);
@@ -308,6 +311,19 @@ export default function ProjectDetail() {
   await saveTasks([...tasks, { id: uid(), description: newTaskDesc.trim(), featureId, done: false, notes: "" }]);
   await logActivity(project!.id, project!.name, "task_added", newTaskDesc.trim());
   setNewTaskDesc(""); setNewTaskFeatureId("unassigned"); setAddingTask(false);
+}
+async function addBulkTasks() {
+  if (!bulkText.trim()) return;
+  const lines = bulkText
+    .split("\n")
+    .map(l => l.replace(/^[-*•]\s*/, "").replace(/^\[\s*\]\s*/, "").trim())
+    .filter(l => l.length > 0);
+  if (lines.length === 0) return;
+  const featureId = bulkFeatureId === "unassigned" ? null : bulkFeatureId;
+  const newTasks = lines.map(desc => ({ id: uid(), description: desc, featureId, done: false, notes: "" }));
+  await saveTasks([...tasks, ...newTasks]);
+  await logActivity(project!.id, project!.name, "task_added", `${lines.length} tasks added in bulk`);
+  setBulkText(""); setBulkFeatureId("unassigned"); setBulkMode(false);
 }
 async function toggleTask(taskId: string) {
   const task = tasks.find(t => t.id === taskId);
@@ -803,20 +819,25 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
 
               {/* STILL TO COMPLETE */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
-                <div style={{ padding: "14px 20px", borderBottom: tasksCollapsed ? "none" : "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div onClick={() => setTasksCollapsed(p => !p)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", flex: 1 }}>
-                    <span style={{ color: "var(--muted)", fontSize: "10px" }}>{tasksCollapsed ? "▶" : "▼"}</span>
-                    <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
-                    {totalTasks > 0 && <span style={{ fontSize: "10px", color: "var(--muted)" }}>{doneTasks}/{totalTasks}</span>}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ display: "flex", borderRadius: "2px", overflow: "hidden", border: "1px solid var(--border2)" }}>
-                      <button onClick={() => setTaskFilter("incomplete")} style={{ padding: "4px 8px", background: taskFilter === "incomplete" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "incomplete" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>OPEN</button>
-                      <button onClick={() => setTaskFilter("all")} style={{ padding: "4px 8px", background: taskFilter === "all" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "all" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>ALL</button>
-                    </div>
-                    <button onClick={() => { setAddingTask(true); setNewTaskFeatureId("unassigned"); }} style={{ background: "none", border: "none", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px" }}>+ ADD</button>
-                  </div>
-                </div>
+<div style={{ padding: "14px 20px", borderBottom: tasksCollapsed ? "none" : "1px solid var(--border)" }}>  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: tasksCollapsed ? 0 : "8px" }}>
+    <div onClick={() => setTasksCollapsed(p => !p)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+      <span style={{ color: "var(--muted)", fontSize: "10px" }}>{tasksCollapsed ? "▶" : "▼"}</span>
+      <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" }}>STILL TO COMPLETE</span>
+      {totalTasks > 0 && <span style={{ fontSize: "10px", color: "var(--muted)" }}>{doneTasks}/{totalTasks}</span>}
+    </div>
+  </div>
+  {!tasksCollapsed && (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", borderRadius: "2px", overflow: "hidden", border: "1px solid var(--border2)" }}>
+        <button onClick={() => setTaskFilter("incomplete")} style={{ padding: "4px 8px", background: taskFilter === "incomplete" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "incomplete" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>OPEN</button>
+        <button onClick={() => setTaskFilter("all")} style={{ padding: "4px 8px", background: taskFilter === "all" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "all" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>ALL</button>
+      </div>
+      <div style={{ flex: 1 }} />
+      <button onClick={() => { setAddingTask(true); setNewTaskFeatureId("unassigned"); setBulkMode(false); }} style={{ background: "none", border: "1px solid var(--border2)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px", padding: "4px 10px", borderRadius: "2px" }}>+ ADD</button>
+      <button onClick={() => { setBulkMode(true); setAddingTask(false); setBulkText(""); }} style={{ background: "none", border: "1px solid rgba(139,92,246,0.3)", color: "var(--purple)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px", padding: "4px 10px", borderRadius: "2px" }}>++ BULK</button>
+    </div>
+  )}
+</div>
 
                 {!tasksCollapsed && addingTask && (
                   <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -835,6 +856,50 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
                     </div>
                   </div>
                 )}
+                {!tasksCollapsed && bulkMode && (
+  <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", background: "var(--surface2)", display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div style={{ fontSize: "10px", color: "var(--cyan)", letterSpacing: "1px", fontFamily: "var(--font-jetbrains)" }}>
+      One task per line — paste a list and assign them all at once
+    </div>
+    <textarea
+      value={bulkText}
+      onChange={e => setBulkText(e.target.value)}
+      placeholder={"Build login page\nSet up database schema\nWrite API endpoints\nDeploy to Vercel"}
+      rows={6}
+      autoFocus
+      style={{
+        background: "var(--surface3)", border: "1px solid var(--border2)",
+        color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "12px",
+        padding: "8px 10px", borderRadius: "2px", outline: "none",
+        resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", width: "100%",
+      }}
+    />
+    <select
+      value={bulkFeatureId}
+      onChange={e => setBulkFeatureId(e.target.value)}
+      style={{ background: "var(--surface3)", border: "1px solid var(--border2)", color: bulkFeatureId !== "unassigned" ? "var(--text)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px", borderRadius: "2px", outline: "none" }}
+    >
+      <option value="unassigned">— No feature (Unassigned) —</option>
+      {sortVersions(project.versions || []).map(v => (
+        <optgroup key={v.id} label={`v${v.number} — ${v.title}`}>
+          {(v.features || []).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </optgroup>
+      ))}
+    </select>
+    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+      <button
+        onClick={addBulkTasks}
+        style={{ flex: 1, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)", color: "var(--purple)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px", borderRadius: "2px", cursor: "pointer", letterSpacing: "1px" }}
+      >
+        ADD ALL ({bulkText.split("\n").filter(l => l.trim().length > 0).length} tasks)
+      </button>
+      <button
+        onClick={() => { setBulkMode(false); setBulkText(""); }}
+        style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px 12px", borderRadius: "2px", cursor: "pointer" }}
+      >✕</button>
+    </div>
+  </div>
+)}
 
                 {!tasksCollapsed && <div style={{ padding: "8px 0" }}>
                   {groupedForDisplay.map(vGroup => (
@@ -896,7 +961,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
 
                   {totalTasks === 0 && <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>All tasks complete ✓</div>}
                 </div>}
-              </div>
+              </div> {/* ← add this closing div */}
 {/* ACTIVITY LOG */}
 <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
   <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
