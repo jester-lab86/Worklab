@@ -159,6 +159,7 @@ export default function ProjectDetail() {
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const [collapsedTaskGroups, setCollapsedTaskGroups] = useState<Record<string, boolean>>({});
   const [taskFilter, setTaskFilter] = useState<"all" | "incomplete">("incomplete");
+const [taskView, setTaskView] = useState<"todo" | "scheduled">("todo");
 
   const [versionModal, setVersionModal] = useState<Version | null>(null);
   const [featureModal, setFeatureModal] = useState<{ feature: Feature; versionId: string; versionLabel: string } | null>(null);
@@ -864,16 +865,26 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
     </div>
   </div>
   {!tasksCollapsed && (
+  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    {/* View toggle */}
+    <div style={{ display: "flex", borderRadius: "2px", overflow: "hidden", border: "1px solid var(--border2)" }}>
+      <button onClick={() => setTaskView("todo")} style={{ flex: 1, padding: "5px 8px", background: taskView === "todo" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskView === "todo" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer", letterSpacing: "1px" }}>TO DO</button>
+      <button onClick={() => setTaskView("scheduled")} style={{ flex: 1, padding: "5px 8px", background: taskView === "scheduled" ? "rgba(139,92,246,0.15)" : "transparent", border: "none", color: taskView === "scheduled" ? "var(--purple)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer", letterSpacing: "1px" }}>SCHEDULED</button>
+    </div>
+    {/* Filter + action row */}
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <div style={{ display: "flex", borderRadius: "2px", overflow: "hidden", border: "1px solid var(--border2)" }}>
-        <button onClick={() => setTaskFilter("incomplete")} style={{ padding: "4px 8px", background: taskFilter === "incomplete" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "incomplete" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>OPEN</button>
-        <button onClick={() => setTaskFilter("all")} style={{ padding: "4px 8px", background: taskFilter === "all" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "all" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>ALL</button>
-      </div>
+      {taskView === "todo" && (
+        <div style={{ display: "flex", borderRadius: "2px", overflow: "hidden", border: "1px solid var(--border2)" }}>
+          <button onClick={() => setTaskFilter("incomplete")} style={{ padding: "4px 8px", background: taskFilter === "incomplete" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "incomplete" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>OPEN</button>
+          <button onClick={() => setTaskFilter("all")} style={{ padding: "4px 8px", background: taskFilter === "all" ? "var(--cyan-dim)" : "transparent", border: "none", color: taskFilter === "all" ? "var(--cyan)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "9px", cursor: "pointer" }}>ALL</button>
+        </div>
+      )}
       <div style={{ flex: 1 }} />
       <button onClick={() => { setAddingTask(true); setNewTaskFeatureId("unassigned"); setBulkMode(false); }} style={{ background: "none", border: "1px solid var(--border2)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px", padding: "4px 10px", borderRadius: "2px" }}>+ ADD</button>
       <button onClick={() => { setBulkMode(true); setAddingTask(false); setBulkText(""); }} style={{ background: "none", border: "1px solid rgba(139,92,246,0.3)", color: "var(--purple)", fontFamily: "var(--font-jetbrains)", fontSize: "10px", cursor: "pointer", letterSpacing: "1px", padding: "4px 10px", borderRadius: "2px" }}>++ BULK</button>
     </div>
-  )}
+  </div>
+)}
 </div>
 
                 {!tasksCollapsed && addingTask && (
@@ -948,65 +959,114 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
 )}
 
                 {!tasksCollapsed && <div style={{ padding: "8px 0" }}>
-                  {groupedForDisplay.map(vGroup => (
-                    <div key={vGroup.versionNumber}>
-                      <div onClick={() => setCollapsedTaskGroups(p => ({ ...p, [vGroup.versionNumber]: !p[vGroup.versionNumber] }))} style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                        <span style={{ fontSize: "8px", color: "var(--muted)" }}>{collapsedTaskGroups[vGroup.versionNumber] ? "▶" : "▼"}</span>
-                        <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--cyan)", textTransform: "uppercase" }}>v{vGroup.versionNumber}</span>
-                        <span style={{ fontSize: "9px", color: "var(--muted)" }}>{vGroup.versionTitle}</span>
-                        <div style={{ flex: 1, height: "3px", background: "var(--border)", borderRadius: "2px", overflow: "visible", position: "relative" }}>
-                          <div style={{ position: "absolute", top: 0, left: 0, height: "3px", borderRadius: "2px", background: "linear-gradient(90deg, #d4a800, #ffe033, #fff176)", width: `${Math.round((vGroup.features.flatMap(f => f.tasks).filter(t => t.done).length / Math.max(vGroup.features.flatMap(f => f.tasks).length, 1)) * 100)}%`, boxShadow: "0 0 6px 1px rgba(255,224,51,0.8), 0 0 14px 3px rgba(245,197,0,0.55)", animation: "yellowPulse 2.2s ease-in-out infinite alternate" }} />
-                        </div>
-                      </div>
-                      {!collapsedTaskGroups[vGroup.versionNumber] && vGroup.features.map(fGroup => (
-                        <div key={fGroup.featureId} style={{ marginBottom: "4px" }}>
-                          <div style={{ padding: "5px 20px 4px 28px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>◆ {fGroup.featureName}</span>
-                            <div style={{ flex: 1, height: "1px", background: "var(--border)", opacity: 0.5 }} />
-                            <span style={{ fontSize: "9px", color: "var(--muted)" }}>{fGroup.tasks.filter(t => t.done).length}/{fGroup.tasks.length}</span>
-                          </div>
-                          {fGroup.tasks.filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
-                            <div key={task.id} draggable onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)} onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
-                              style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px 8px 28px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                              <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
-                              <div onClick={() => toggleTask(task.id)} style={{ width: "18px", height: "18px", minWidth: "18px", borderRadius: "2px", border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: task.done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer" }}>{task.done ? "✓" : ""}</div>
-                              <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>{task.description}</span>
-                              {task.notes && <span style={{ fontSize: "9px", color: "var(--muted)" }}>📝</span>}
-                              <InfoIcon onClick={() => openTaskModal(task)} color="var(--green)" />
-                              <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px", padding: "0 4px", minWidth: "24px" }}>✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-
-                  {unassignedTasks.length > 0 && (
-                    <div>
-                      <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--muted)", textTransform: "uppercase" }}>Unassigned</span>
-                        <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-                      </div>
-                      {unassignedTasks.filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
-                        <div key={task.id} draggable onDragStart={() => handleDragStart(null, taskIdx)} onDragEnter={() => handleDragEnter(null, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
-                          style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                          <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
-                          <div onClick={() => toggleTask(task.id)} style={{ width: "18px", height: "18px", minWidth: "18px", borderRadius: "2px", border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: task.done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer" }}>{task.done ? "✓" : ""}</div>
-                          <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>{task.description}</span>
-                          {task.notes && <span style={{ fontSize: "9px", color: "var(--muted)" }}>📝</span>}
-                          <InfoIcon onClick={() => openTaskModal(task)} color="var(--green)" />
-                          <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px", padding: "0 4px", minWidth: "24px" }}>✕</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {totalTasks === 0 && <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>All tasks complete ✓</div>}
-                </div>}
+  {taskView === "todo" ? (
+    <>
+      {groupedForDisplay.map(vGroup => (
+        <div key={vGroup.versionNumber}>
+          <div onClick={() => setCollapsedTaskGroups(p => ({ ...p, [vGroup.versionNumber]: !p[vGroup.versionNumber] }))} style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+            <span style={{ fontSize: "8px", color: "var(--muted)" }}>{collapsedTaskGroups[vGroup.versionNumber] ? "▶" : "▼"}</span>
+            <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--cyan)", textTransform: "uppercase" }}>v{vGroup.versionNumber}</span>
+            <span style={{ fontSize: "9px", color: "var(--muted)" }}>{vGroup.versionTitle}</span>
+            <div style={{ flex: 1, height: "3px", background: "var(--border)", borderRadius: "2px", overflow: "visible", position: "relative" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, height: "3px", borderRadius: "2px", background: "linear-gradient(90deg, #d4a800, #ffe033, #fff176)", width: `${Math.round((vGroup.features.flatMap(f => f.tasks).filter(t => t.done).length / Math.max(vGroup.features.flatMap(f => f.tasks).length, 1)) * 100)}%`, boxShadow: "0 0 6px 1px rgba(255,224,51,0.8)", animation: "yellowPulse 2.2s ease-in-out infinite alternate" }} />
+            </div>
+          </div>
+          {!collapsedTaskGroups[vGroup.versionNumber] && vGroup.features.map(fGroup => (
+            <div key={fGroup.featureId} style={{ marginBottom: "4px" }}>
+              <div style={{ padding: "5px 20px 4px 28px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "9px", color: "var(--muted)", fontFamily: "var(--font-jetbrains)" }}>◆ {fGroup.featureName}</span>
+                <div style={{ flex: 1, height: "1px", background: "var(--border)", opacity: 0.5 }} />
+                <span style={{ fontSize: "9px", color: "var(--muted)" }}>{fGroup.tasks.filter(t => !t.dueDate && t.done).length}/{fGroup.tasks.filter(t => !t.dueDate).length}</span>
+              </div>
+              {fGroup.tasks.filter(t => !t.dueDate).filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
+                <div key={task.id} draggable onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)} onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px 8px 28px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                  <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
+                  <div onClick={() => toggleTask(task.id)} style={{ width: "18px", height: "18px", minWidth: "18px", borderRadius: "2px", border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: task.done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer" }}>{task.done ? "✓" : ""}</div>
+                  <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>{task.description}</span>
+                  {task.notes && <span style={{ fontSize: "9px", color: "var(--muted)" }}>📝</span>}
+                  <InfoIcon onClick={() => openTaskModal(task)} color="var(--green)" />
+                  <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px", padding: "0 4px", minWidth: "24px" }}>✕</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+      {unassignedTasks.filter(t => !t.dueDate).length > 0 && (
+        <div>
+          <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--muted)", textTransform: "uppercase" }}>Unassigned</span>
+            <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+          </div>
+          {unassignedTasks.filter(t => !t.dueDate).filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
+            <div key={task.id} draggable onDragStart={() => handleDragStart(null, taskIdx)} onDragEnter={() => handleDragEnter(null, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
+              style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+              <span style={{ color: "var(--border2)", fontSize: "10px", cursor: "grab", userSelect: "none", flexShrink: 0 }}>⠿</span>
+              <div onClick={() => toggleTask(task.id)} style={{ width: "18px", height: "18px", minWidth: "18px", borderRadius: "2px", border: task.done ? "2px solid var(--cyan)" : "2px solid var(--border2)", background: task.done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer" }}>{task.done ? "✓" : ""}</div>
+              <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>{task.description}</span>
+              {task.notes && <span style={{ fontSize: "9px", color: "var(--muted)" }}>📝</span>}
+              <InfoIcon onClick={() => openTaskModal(task)} color="var(--green)" />
+              <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px", padding: "0 4px", minWidth: "24px" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {tasks.filter(t => !t.dueDate).length === 0 && (
+        <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>No unscheduled tasks ✓</div>
+      )}
+    </>
+  ) : (
+    (() => {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const scheduledTasks = tasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+      if (scheduledTasks.length === 0) return (
+        <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>No scheduled tasks — add a due date to a task to see it here.</div>
+      );
+      const grouped: Record<string, typeof scheduledTasks> = {};
+      scheduledTasks.forEach(t => { if (!grouped[t.dueDate!]) grouped[t.dueDate!] = []; grouped[t.dueDate!].push(t); });
+      return (
+        <div>
+          {Object.entries(grouped).map(([dateStr, dateTasks]) => {
+            const due = new Date(dateStr + "T00:00:00");
+            const isToday = dateStr === todayStr;
+            const isOverdue = due < today;
+            const dateLabel = due.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+            const dateColor = isOverdue ? "var(--red)" : isToday ? "var(--cyan)" : "var(--muted)";
+            return (
+              <div key={dateStr}>
+                <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1px", color: dateColor, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                    {isToday ? "TODAY" : isOverdue ? `⚠ ${dateLabel}` : dateLabel}
+                  </span>
+                  <div style={{ flex: 1, height: "1px", background: isOverdue ? "rgba(239,68,68,0.3)" : isToday ? "rgba(0,212,255,0.3)" : "var(--border)" }} />
+                  <span style={{ fontSize: "9px", color: "var(--muted)" }}>{dateTasks.filter(t => t.done).length}/{dateTasks.length}</span>
+                </div>
+                {dateTasks.map(task => (
+                  <div key={task.id}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px", borderBottom: "1px solid var(--border)", background: isOverdue && !task.done ? "rgba(239,68,68,0.03)" : "transparent" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOverdue && !task.done ? "rgba(239,68,68,0.03)" : "transparent"; }}>
+                    <div onClick={() => toggleTask(task.id)} style={{ width: "18px", height: "18px", minWidth: "18px", borderRadius: "2px", border: task.done ? "2px solid var(--cyan)" : isOverdue ? "2px solid rgba(239,68,68,0.5)" : "2px solid var(--border2)", background: task.done ? "var(--cyan)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", color: "var(--bg)", cursor: "pointer" }}>{task.done ? "✓" : ""}</div>
+                    <span style={{ fontSize: "12px", color: task.done ? "var(--muted)" : isOverdue ? "var(--red)" : "var(--text)", textDecoration: task.done ? "line-through" : "none", flex: 1, lineHeight: 1.4 }}>{task.description}</span>
+                    {task.notes && <span style={{ fontSize: "9px", color: "var(--muted)" }}>📝</span>}
+                    <InfoIcon onClick={() => openTaskModal(task)} color="var(--green)" />
+                    <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: "14px", padding: "0 4px", minWidth: "24px" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      );
+    })()
+  )}
+</div>}
               </div> {/* ← add this closing div */}
               {/* DEPENDENCIES */}
 <DependenciesPanel projectId={id as string} allProjects={allProjects} />
