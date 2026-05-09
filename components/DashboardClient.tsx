@@ -106,8 +106,9 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
         </div>
         {[
           { href: "/analytics", label: "◈ ANALYTICS" },
-          { href: "/roadmap", label: "◈ ROADMAP" },
-          { href: "/projects/new", label: "+ NEW PROJECT" },
+{ href: "/roadmap", label: "◈ ROADMAP" },
+{ href: "/calendar", label: "◈ CALENDAR" },
+{ href: "/projects/new", label: "+ NEW PROJECT" },
         ].map(item => (
           <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
             padding: "12px 16px", border: "1px solid var(--border)", borderRadius: "2px",
@@ -215,7 +216,8 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
               ))}
             </div>
             <Link href="/analytics" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ANALYTICS</Link>
-            <Link href="/roadmap" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ROADMAP</Link>
+<Link href="/roadmap" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ROADMAP</Link>
+<Link href="/calendar" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ CALENDAR</Link>
             <a href="/api/export" download style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>⬇ EXPORT</a>
            <ThemeToggle />
             <Link href="/projects/new" style={{ padding: "7px 16px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>+ NEW</Link>
