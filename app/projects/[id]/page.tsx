@@ -43,6 +43,7 @@ interface Task {
   featureId: string | null;
   done: boolean;
   notes?: string;
+  dueDate?: string;
 }
 
 function normalizeTasks(raw: (string | Task)[]): Task[] {
@@ -178,6 +179,8 @@ const [bulkText, setBulkText] = useState("");
 const [bulkFeatureId, setBulkFeatureId] = useState<string>("unassigned");
 const [allProjects, setAllProjects] = useState<{ id: number; name: string }[]>([]);
 const [activityCollapsed, setActivityCollapsed] = useState(true);
+const [newTaskDueDate, setNewTaskDueDate] = useState("");
+const [modalTaskDueDate, setModalTaskDueDate] = useState("");
 
   function openVersionModal(v: Version) {
     setVersionModal(v); setModalVersionNumber(v.number); setModalVersionTitle(v.title);
@@ -187,10 +190,11 @@ const [activityCollapsed, setActivityCollapsed] = useState(true);
     setFeatureModal({ feature: f, versionId, versionLabel }); setModalFeatureName(f.name);
     setModalFeatureNotes(f.notes || ""); setModalFeatureStatus(f.status);
   }
-  function openTaskModal(task: Task) {
-    setTaskModal(task); setModalTaskDesc(task.description); setModalTaskNotes(task.notes || "");
-    setModalTaskFeatureId(task.featureId ?? "unassigned"); setModalTaskDone(task.done);
-  }
+ function openTaskModal(task: Task) {
+  setTaskModal(task); setModalTaskDesc(task.description); setModalTaskNotes(task.notes || "");
+  setModalTaskFeatureId(task.featureId ?? "unassigned"); setModalTaskDone(task.done);
+  setModalTaskDueDate(task.dueDate || "");
+}
 
   useEffect(() => {
     fetch(`/api/projects/${id}`)
@@ -252,11 +256,18 @@ const [activityCollapsed, setActivityCollapsed] = useState(true);
     setFeatureModal(null);
   }
   async function saveTaskModal() {
-    if (!taskModal) return;
-    const fid = modalTaskFeatureId === "unassigned" ? null : modalTaskFeatureId;
-    await saveTasks(tasks.map(t => t.id === taskModal.id ? { ...t, description: modalTaskDesc, notes: modalTaskNotes, featureId: fid, done: modalTaskDone } : t));
-    setTaskModal(null);
-  }
+  if (!taskModal) return;
+  const fid = modalTaskFeatureId === "unassigned" ? null : modalTaskFeatureId;
+  await saveTasks(tasks.map(t => t.id === taskModal.id ? {
+    ...t,
+    description: modalTaskDesc,
+    notes: modalTaskNotes,
+    featureId: fid,
+    done: modalTaskDone,
+    dueDate: modalTaskDueDate || undefined,
+  } : t));
+  setTaskModal(null);
+}
   async function saveNotes() {
   if (!project) return;
   setSaving(true);
@@ -318,9 +329,16 @@ const [activityCollapsed, setActivityCollapsed] = useState(true);
   async function addTask() {
   if (!newTaskDesc.trim()) return;
   const featureId = newTaskFeatureId === "unassigned" ? null : newTaskFeatureId;
-  await saveTasks([...tasks, { id: uid(), description: newTaskDesc.trim(), featureId, done: false, notes: "" }]);
+  await saveTasks([...tasks, { 
+    id: uid(), 
+    description: newTaskDesc.trim(), 
+    featureId, 
+    done: false, 
+    notes: "",
+    dueDate: newTaskDueDate || undefined,
+  }]);
   await logActivity(project!.id, project!.name, "task_added", newTaskDesc.trim());
-  setNewTaskDesc(""); setNewTaskFeatureId("unassigned"); setAddingTask(false);
+  setNewTaskDesc(""); setNewTaskFeatureId("unassigned"); setNewTaskDueDate(""); setAddingTask(false);
 }
 async function addBulkTasks() {
   if (!bulkText.trim()) return;
@@ -539,6 +557,15 @@ setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", 
                 ))}
               </select>
             </div>
+            <div>
+  <label style={labelStyle}>Due Date</label>
+  <input
+    type="date"
+    value={modalTaskDueDate}
+    onChange={e => setModalTaskDueDate(e.target.value)}
+    style={{ ...inputStyle }}
+  />
+</div>
             <div>
               <label style={labelStyle}>Status</label>
               <div onClick={() => setModalTaskDone(d => !d)} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px", background: "var(--surface3)", border: "1px solid var(--border2)", borderRadius: "2px", cursor: "pointer" }}>
@@ -860,10 +887,19 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
                         </optgroup>
                       ))}
                     </select>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={addTask} style={{ flex: 1, background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px", borderRadius: "2px", cursor: "pointer" }}>ADD</button>
-                      <button onClick={() => { setAddingTask(false); setNewTaskDesc(""); }} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px 12px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
-                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+  <label style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px", textTransform: "uppercase" }}>Due Date (optional)</label>
+  <input
+    type="date"
+    value={newTaskDueDate}
+    onChange={e => setNewTaskDueDate(e.target.value)}
+    style={{ background: "var(--surface3)", border: "1px solid var(--border2)", color: newTaskDueDate ? "var(--text)" : "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px 10px", borderRadius: "2px", outline: "none", width: "100%", boxSizing: "border-box" as const }}
+  />
+</div>
+<div style={{ display: "flex", gap: "6px" }}>
+  <button onClick={addTask} style={{ flex: 1, background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px", borderRadius: "2px", cursor: "pointer" }}>ADD</button>
+  <button onClick={() => { setAddingTask(false); setNewTaskDesc(""); setNewTaskDueDate(""); }} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", padding: "8px 12px", borderRadius: "2px", cursor: "pointer" }}>✕</button>
+</div>
                   </div>
                 )}
                 {!tasksCollapsed && bulkMode && (
