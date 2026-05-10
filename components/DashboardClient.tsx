@@ -108,6 +108,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
           { href: "/analytics", label: "◈ ANALYTICS" },
 { href: "/roadmap", label: "◈ ROADMAP" },
 { href: "/calendar", label: "◈ CALENDAR" },
+{ href: "/bugs", label: "⚡ BUGS" },
 { href: "/projects/new", label: "+ NEW PROJECT" },
         ].map(item => (
           <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
@@ -218,6 +219,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
             <Link href="/analytics" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ANALYTICS</Link>
 <Link href="/roadmap" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ROADMAP</Link>
 <Link href="/calendar" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ CALENDAR</Link>
+<Link href="/bugs" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(255,59,92,0.3)", color: "#ff3b5c", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>⚡ BUGS</Link>
             <a href="/api/export" download style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>⬇ EXPORT</a>
            <ThemeToggle />
             <Link href="/projects/new" style={{ padding: "7px 16px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>+ NEW</Link>
