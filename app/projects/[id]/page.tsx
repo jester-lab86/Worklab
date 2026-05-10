@@ -9,6 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { logActivity } from "@/lib/logActivity";
 import ActivityFeed from "@/components/ActivityFeed";
 import DependenciesPanel from "@/components/DependenciesPanel";
+import BugsPanel from "@/components/BugsPanel";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -44,6 +45,7 @@ interface Task {
   done: boolean;
   notes?: string;
   dueDate?: string;
+  bugId?: number | null;
 }
 
 function normalizeTasks(raw: (string | Task)[]): Task[] {
@@ -52,8 +54,7 @@ function normalizeTasks(raw: (string | Task)[]): Task[] {
       try {
         const parsed = JSON.parse(item);
         if (parsed && typeof parsed === "object" && "description" in parsed) {
-          return { id: parsed.id || uid(), description: parsed.description, featureId: parsed.featureId ?? null, done: parsed.done ?? false, notes: parsed.notes || "" };
-        }
+return { id: parsed.id || uid(), description: parsed.description, featureId: parsed.featureId ?? null, done: parsed.done ?? false, notes: parsed.notes || "", dueDate: parsed.dueDate || undefined, bugId: parsed.bugId ?? null };        }
       } catch {}
       const done = item.startsWith("✓ ");
       return { id: uid(), description: done ? item.slice(2) : item, featureId: null, done, notes: "" };
@@ -1068,6 +1069,8 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
   )}
 </div>}
               </div> {/* ← add this closing div */}
+              {/* BUGS */}
+<BugsPanel projectId={id as string} />
               {/* DEPENDENCIES */}
 <DependenciesPanel projectId={id as string} allProjects={allProjects} />
 {/* ACTIVITY LOG */}
