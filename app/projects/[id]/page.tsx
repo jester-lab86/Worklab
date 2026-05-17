@@ -10,6 +10,7 @@ import { logActivity } from "@/lib/logActivity";
 import ActivityFeed from "@/components/ActivityFeed";
 import DependenciesPanel from "@/components/DependenciesPanel";
 import BugsPanel from "@/components/BugsPanel";
+import { parseMarkdown } from "@/lib/parseMarkdown";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -183,6 +184,11 @@ const [allProjects, setAllProjects] = useState<{ id: number; name: string }[]>([
 const [activityCollapsed, setActivityCollapsed] = useState(true);
 const [newTaskDueDate, setNewTaskDueDate] = useState("");
 const [modalTaskDueDate, setModalTaskDueDate] = useState("");
+const [mergeMode, setMergeMode] = useState(false);
+const [mergeDump, setMergeDump] = useState("");
+const [mergePreview, setMergePreview] = useState<{ added: any; skipped: any; versions: any[] } | null>(null);
+const [mergeSaving, setMergeSaving] = useState(false);
+const [mergeDone, setMergeDone] = useState(false);
 
   function openVersionModal(v: Version) {
     setVersionModal(v); setModalVersionNumber(v.number); setModalVersionTitle(v.title);
@@ -407,6 +413,38 @@ async function toggleTask(taskId: string) {
     const grouped = project.tech_stack_grouped.map(c => c.category === category ? { ...c, items: c.items.filter(i => i !== item) } : c).filter(c => c.items.length > 0);
     await patchProject({ ...project, tech_stack_grouped: grouped, tech_stack: grouped.flatMap(c => c.items) });
   }
+  async function previewMerge() {
+  if (!mergeDump.trim()) return;
+  const parsed = parseProjectMarkdown(mergeDump);
+  const res = await fetch(`/api/projects/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ versions: parsed.versions || [], preview: true }),
+  });
+  const data = await res.json();
+  setMergePreview({ added: data.added, skipped: data.skipped, versions: parsed.versions || [] });
+}
+
+async function confirmMerge() {
+  if (!mergePreview) return;
+  setMergeSaving(true);
+  await fetch(`/api/projects/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ versions: mergePreview.versions }),
+  });
+  setMergeSaving(false);
+  setMergeDone(true);
+  setMergePreview(null);
+  setMergeDump("");
+  // Reload project
+  const res = await fetch(`/api/projects/${id}`);
+  const data = await res.json();
+  if (typeof data.versions === "string") data.versions = JSON.parse(data.versions);
+  if (typeof data.tech_stack_grouped === "string") data.tech_stack_grouped = JSON.parse(data.tech_stack_grouped);
+  setProject(data);
+  setTimeout(() => { setMergeDone(false); setMergeMode(false); }, 2000);
+}
 
   if (!project) return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -582,7 +620,102 @@ setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", 
           </div>
         </Modal>
       )}
+{mergeMode && (
+  <Modal onClose={() => { setMergeMode(false); setMergePreview(null); setMergeDump(""); }}>
+    <div style={{ height: "2px", background: "linear-gradient(90deg, var(--amber), transparent)" }} />
+    <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div>
+        <div style={{ fontSize: "9px", letterSpacing: "2px", color: "var(--muted)", textTransform: "uppercase", marginBottom: "4px" }}>Import</div>
+        <div style={{ fontFamily: "var(--font-syne)", fontSize: "16px", fontWeight: 700 }}>Brain Dump Merge</div>
+        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px" }}>Paste a brain dump — new versions, features and phases will be added. Existing ones will not be touched.</div>
+      </div>
+      <button onClick={() => { setMergeMode(false); setMergePreview(null); setMergeDump(""); }} style={{ background: "none", border: "1px solid var(--border2)", color: "var(--muted)", cursor: "pointer", width: "32px", height: "32px", borderRadius: "2px", fontSize: "14px", flexShrink: 0 }}>✕</button>
+    </div>
 
+    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+      {!mergePreview ? (
+        <>
+          <div>
+            <label style={labelStyle}>Brain Dump Markdown</label>
+            <textarea
+              value={mergeDump}
+              onChange={e => setMergeDump(e.target.value)}
+              rows={12}
+              placeholder={"### v5.0 — SIGNAL Focus Engine\n\n#### Phase 1 — Database & API\n\n**Feature: Signal Infrastructure**\n\n* [ ] Create signal_cycles table\n* [ ] Build GET /api/signal/cycles route"}
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6, fontSize: "11px" }}
+            />
+          </div>
+          <div style={{ fontSize: "10px", color: "var(--muted)", lineHeight: 1.7 }}>
+            Paste any FORGE-format markdown. Only <span style={{ color: "var(--cyan)" }}>versions, features, and phases</span> are merged. Tasks in STILL TO COMPLETE are not affected.
+          </div>
+        </>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ fontSize: "11px", color: "var(--muted)" }}>Preview — confirm before saving:</div>
+
+          {/* Added */}
+          <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "4px", padding: "14px 16px" }}>
+            <div style={{ fontSize: "10px", color: "var(--green)", letterSpacing: "1px", fontWeight: 700, marginBottom: "8px" }}>WILL BE ADDED</div>
+            <div style={{ display: "flex", gap: "20px" }}>
+              {[
+                { label: "New Versions", value: mergePreview.added.versions },
+                { label: "New Features", value: mergePreview.added.features },
+                { label: "New Phases", value: mergePreview.added.tasks },
+              ].map(s => (
+                <div key={s.label}>
+                  <div style={{ fontFamily: "var(--font-syne)", fontSize: "22px", fontWeight: 800, color: "var(--green)" }}>{s.value}</div>
+                  <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Skipped */}
+          <div style={{ background: "var(--surface3)", border: "1px solid var(--border)", borderRadius: "4px", padding: "14px 16px" }}>
+            <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", fontWeight: 700, marginBottom: "8px" }}>ALREADY EXISTS — SKIPPED</div>
+            <div style={{ display: "flex", gap: "20px" }}>
+              {[
+                { label: "Versions", value: mergePreview.skipped.versions },
+                { label: "Features", value: mergePreview.skipped.features },
+                { label: "Phases", value: mergePreview.skipped.tasks },
+              ].map(s => (
+                <div key={s.label}>
+                  <div style={{ fontFamily: "var(--font-syne)", fontSize: "22px", fontWeight: 800, color: "var(--muted)" }}>{s.value}</div>
+                  <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {mergePreview.added.versions === 0 && mergePreview.added.features === 0 && mergePreview.added.tasks === 0 && (
+            <div style={{ fontSize: "11px", color: "var(--amber)", textAlign: "center", padding: "8px" }}>
+              ⚠ Nothing new to add — all content already exists in this project.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+      {!mergePreview ? (
+        <>
+          <button onClick={() => { setMergeMode(false); setMergeDump(""); }} style={{ padding: "8px 16px", background: "none", border: "1px solid var(--border2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", cursor: "pointer", borderRadius: "2px" }}>CANCEL</button>
+          <button onClick={previewMerge} disabled={!mergeDump.trim()} style={{ padding: "8px 20px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", color: "var(--amber)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", cursor: "pointer", borderRadius: "2px", opacity: !mergeDump.trim() ? 0.5 : 1 }}>PREVIEW MERGE</button>
+        </>
+      ) : (
+        <>
+          <button onClick={() => setMergePreview(null)} style={{ padding: "8px 16px", background: "none", border: "1px solid var(--border2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", cursor: "pointer", borderRadius: "2px" }}>← BACK</button>
+          <button
+            onClick={confirmMerge}
+            disabled={mergeSaving || (mergePreview.added.versions === 0 && mergePreview.added.features === 0 && mergePreview.added.tasks === 0)}
+            style={{ padding: "8px 20px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)", color: "var(--green)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", cursor: "pointer", borderRadius: "2px", opacity: mergeSaving ? 0.6 : 1 }}>
+            {mergeSaving ? "MERGING..." : mergeDone ? "✓ MERGED" : "CONFIRM MERGE"}
+          </button>
+        </>
+      )}
+    </div>
+  </Modal>
+)}
       <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", background: "var(--bg)" }}>
 
         {/* TOP BAR */}
@@ -623,10 +756,12 @@ setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", 
                 <button key={p} onClick={() => patchProject({ ...project, priority: p })} style={{ padding: "4px 8px", borderRadius: "2px", fontSize: "9px", fontWeight: 700, letterSpacing: "0.5px", fontFamily: "var(--font-jetbrains)", cursor: "pointer", background: (project.priority || "NORMAL") === p ? `${priorityColors[p]}20` : "transparent", border: `1px solid ${(project.priority || "NORMAL") === p ? priorityColors[p] : "var(--border)"}`, color: (project.priority || "NORMAL") === p ? priorityColors[p] : "var(--muted)", transition: "all 0.15s" }}>{p}</button>
               ))}
             </div>
-            <button onClick={() => exportProjectPdf(project)} style={{ padding: "7px 14px", background: "transparent", border: "1px solid rgba(0,212,255,0.2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.4)"; e.currentTarget.style.color = "var(--cyan)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.2)"; e.currentTarget.style.color = "var(--muted)"; }}>⬇ PDF</button>
-            <button onClick={() => setChatOpen(true)} style={{ padding: "7px 14px", background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
+<button onClick={() => setMergeMode(true)} style={{ padding: "7px 14px", background: "transparent", border: "1px solid rgba(245,158,11,0.2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
+  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(245,158,11,0.4)"; e.currentTarget.style.color = "var(--amber)"; }}
+  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(245,158,11,0.2)"; e.currentTarget.style.color = "var(--muted)"; }}>⬆ IMPORT</button>
+<button onClick={() => exportProjectPdf(project)} style={{ padding: "7px 14px", background: "transparent", border: "1px solid rgba(0,212,255,0.2)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
+  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.4)"; e.currentTarget.style.color = "var(--cyan)"; }}
+  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.2)"; e.currentTarget.style.color = "var(--muted)"; }}>⬇ PDF</button>            <button onClick={() => setChatOpen(true)} style={{ padding: "7px 14px", background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
               onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,255,0.15)"}
               onMouseLeave={e => e.currentTarget.style.background = "rgba(0,212,255,0.08)"}>◈ AI INTEL</button>
             <div style={{ position: "relative" }}>
