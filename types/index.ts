@@ -51,6 +51,14 @@ export type Project = {
   versions: Version[];
   priority?: string;
   project_type?: string;
+
+  bugs?: {
+  id: number;
+  title: string;
+  severity: string;
+  status: string;
+}[];
+
   current_progress: string;
   still_to_complete: Task[];
   notes: string;
@@ -58,3 +66,4 @@ export type Project = {
   created_at: string;
   updated_at: string;
 };
+
