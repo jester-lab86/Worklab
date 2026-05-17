@@ -721,7 +721,40 @@ setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", 
         {/* TOP BAR */}
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)", background: "var(--surface)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-            <button onClick={() => router.push("/dashboard")} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", whiteSpace: "nowrap", flexShrink: 0 }}>←</button>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+  <button
+    onClick={() => router.push("/dashboard")}
+    style={{
+      background: "none",
+      border: "none",
+      color: "var(--muted)",
+      cursor: "pointer",
+      fontFamily: "var(--font-jetbrains)",
+      fontSize: "11px",
+      letterSpacing: "1px",
+      whiteSpace: "nowrap",
+      flexShrink: 0
+    }}
+  >
+    ← DASHBOARD
+  </button>
+
+  <span style={{ color: "var(--border2)", fontSize: "12px" }}>
+    ›
+  </span>
+
+  <span
+    style={{
+      fontFamily: "var(--font-jetbrains)",
+      fontSize: "10px",
+      color: "var(--muted)",
+      letterSpacing: "1px",
+      textTransform: "uppercase"
+    }}
+  >
+    OPS CENTER
+  </span>
+</div>
             <div style={{ width: "1px", height: "20px", background: "var(--border)", flexShrink: 0 }} />
             {editingName ? (
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

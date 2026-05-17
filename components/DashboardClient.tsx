@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
 import { Project } from "@/types";
-import ThemeToggle from "@/components/ThemeToggle";
+import GlobalNav from "@/components/GlobalNav";
+
 
 function getPct(project: Project) {
   if (project.versions && project.versions.length > 0) {
@@ -30,7 +30,7 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "priority">("priority");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [menuOpen, setMenuOpen] = useState(false);
+ 
 
   const PRIORITY_ORDER = ["CRITICAL", "HIGH", "NORMAL", "BACKLOG"];
 
@@ -80,167 +80,34 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   ];
 
   return (
-    <>
-      {/* MOBILE MENU OVERLAY */}
-      {menuOpen && (
-        <div
-          onClick={() => setMenuOpen(false)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-            zIndex: 200, backdropFilter: "blur(4px)",
-          }}
-        />
-      )}
+  <>
+    <div
+      style={{
+        position: "relative",
+        zIndex: 1,
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+      }}
+    >
+      <GlobalNav breadcrumb="DASHBOARD" />
 
-      {/* MOBILE SLIDE-IN MENU */}
-      <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: "280px",
-        background: "var(--bg)", borderLeft: "1px solid var(--border)",
-        zIndex: 201, transform: menuOpen ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 0.25s ease", padding: "24px 20px",
-        display: "flex", flexDirection: "column", gap: "8px", overflowY: "auto",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 800, letterSpacing: "2px", color: "var(--cyan)" }}>MENU</span>
-          <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "20px", cursor: "pointer" }}>✕</button>
-        </div>
-        {[
-          { href: "/analytics", label: "◈ ANALYTICS" },
-{ href: "/roadmap", label: "◈ ROADMAP" },
-{ href: "/calendar", label: "◈ CALENDAR" },
-{ href: "/bugs", label: "⚡ BUGS" },
-{ href: "/projects/new", label: "+ NEW PROJECT" },
-        ].map(item => (
-          <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{
-            padding: "12px 16px", border: "1px solid var(--border)", borderRadius: "2px",
-            color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "12px",
-            letterSpacing: "1px", textDecoration: "none", display: "block",
-          }}>
-            {item.label}
-          </Link>
-        ))}
-        <a href="/api/export" download onClick={() => setMenuOpen(false)} style={{
-          padding: "12px 16px", border: "1px solid var(--border)", borderRadius: "2px",
-          color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "12px",
-          letterSpacing: "1px", textDecoration: "none", display: "block",
-        }}>
-          ⬇ EXPORT
-        </a>
-        <ThemeToggle />
-        <button
-          onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+      <div style={{ display: "flex", flex: 1 }}>
+
+        {/* SIDEBAR — desktop only */}
+        <nav
+          className="desktop-sidebar"
           style={{
-            padding: "12px 16px", background: "transparent",
-            border: "1px solid var(--border)", color: "var(--muted)",
-            fontFamily: "var(--font-jetbrains)", fontSize: "12px", letterSpacing: "1px",
-            borderRadius: "2px", cursor: "pointer", textAlign: "left", marginTop: "8px",
+            width: "240px",
+            minWidth: "240px",
+            borderRight: "1px solid var(--border)",
+            padding: "24px 0",
+            position: "sticky",
+            top: "56px",
+            height: "calc(100vh - 56px)",
+            overflowY: "auto",
           }}
         >
-          LOGOUT
-        </button>
-
-        {/* PROJECT LIST IN MENU */}
-        <div style={{ marginTop: "16px", borderTop: "1px solid var(--border)", paddingTop: "16px" }}>
-          <div style={{ fontSize: "10px", letterSpacing: "2px", color: "var(--muted)", marginBottom: "10px" }}>PROJECTS</div>
-          {filtered.map(p => {
-            const pct = getPct(p);
-            return (
-              <Link key={p.id} href={`/projects/${p.id}`} onClick={() => setMenuOpen(false)} style={{ textDecoration: "none" }}>
-                <div style={{
-                  padding: "10px 12px", borderRadius: "2px", display: "flex",
-                  alignItems: "center", gap: "8px", marginBottom: "4px",
-                  border: "1px solid transparent",
-                }}>
-                  <span style={{ fontSize: "13px" }}>{getTypeIcon(p.project_type || "software")}</span>
-                  <span style={{ fontFamily: "var(--font-syne)", fontSize: "12px", fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text)" }}>
-                    {p.name}
-                  </span>
-                  <span style={{ fontSize: "10px", color: pct === 100 ? "var(--green)" : "var(--cyan)", fontWeight: 600 }}>{pct}%</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-
-        {/* TOP BAR */}
-        <header style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)",
-          background: "var(--surface)", backdropFilter: "blur(12px)",
-          position: "sticky", top: 0, zIndex: 100,
-        }}>
-          <div style={{ fontFamily: "var(--font-syne)", fontSize: "18px", fontWeight: 800, letterSpacing: "3px", color: "var(--cyan)", display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "8px", height: "8px", background: "var(--cyan)", borderRadius: "50%", animation: "blink 2s infinite" }} />
-            FORGE
-          </div>
-
-          {/* DESKTOP NAV */}
-          <div className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px" }}>
-              <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS ·{" "}
-              <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{avgPct}%</span> AVG
-            </span>
-            <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "2px", overflow: "hidden" }}>
-              {TYPE_FILTERS.map((f, i) => (
-                <button key={f.value} onClick={() => setTypeFilter(f.value)} style={{
-                  fontFamily: "var(--font-jetbrains)", fontSize: "11px",
-                  padding: "6px 10px", border: "none", cursor: "pointer", transition: "all 0.15s",
-                  background: typeFilter === f.value ? "rgba(0,212,255,0.1)" : "transparent",
-                  color: typeFilter === f.value ? "var(--cyan)" : "var(--muted)",
-                  borderRight: i < TYPE_FILTERS.length - 1 ? "1px solid var(--border)" : "none",
-                }}>{f.label}</button>
-              ))}
-            </div>
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search projects..."
-              style={{
-                background: "var(--surface)", border: "1px solid var(--border)",
-                color: "var(--text)", fontFamily: "var(--font-jetbrains)", fontSize: "11px",
-                padding: "6px 12px", borderRadius: "2px", outline: "none", width: "180px",
-              }}
-              onFocus={e => e.target.style.borderColor = "rgba(0,212,255,0.4)"}
-              onBlur={e => e.target.style.borderColor = "var(--border)"}
-            />
-            <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "2px", overflow: "hidden" }}>
-              {(["grid", "priority"] as const).map(v => (
-                <button key={v} onClick={() => setView(v)} style={{
-                  fontFamily: "var(--font-jetbrains)", fontSize: "10px", letterSpacing: "1px",
-                  padding: "6px 12px", border: "none", cursor: "pointer", transition: "all 0.15s",
-                  background: view === v ? "rgba(0,212,255,0.1)" : "transparent",
-                  color: view === v ? "var(--cyan)" : "var(--muted)",
-                  borderRight: v === "grid" ? "1px solid var(--border)" : "none",
-                }}>{v.toUpperCase()}</button>
-              ))}
-            </div>
-            <Link href="/analytics" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ANALYTICS</Link>
-<Link href="/roadmap" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ ROADMAP</Link>
-<Link href="/calendar" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>◈ CALENDAR</Link>
-<Link href="/bugs" style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(255,59,92,0.3)", color: "#ff3b5c", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>⚡ BUGS</Link>
-            <a href="/api/export" download style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>⬇ EXPORT</a>
-           <ThemeToggle />
-            <Link href="/projects/new" style={{ padding: "7px 16px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", textDecoration: "none" }}>+ NEW</Link>
-            <button onClick={() => signOut({ callbackUrl: "/auth/signin" })} style={{ padding: "7px 16px", background: "transparent", border: "1px solid var(--border)", color: "var(--muted)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", borderRadius: "2px", cursor: "pointer" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--red)"; e.currentTarget.style.color = "var(--red)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--muted)"; }}
-            >LOGOUT</button>
-          </div>
-
-          {/* MOBILE NAV */}
-          <div className="mobile-nav" style={{ display: "none", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-              <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS
-            </span>
-            <Link href="/projects/new" style={{ padding: "7px 14px", background: "var(--cyan-dim)", border: "1px solid rgba(0,212,255,0.3)", color: "var(--cyan)", fontFamily: "var(--font-jetbrains)", fontSize: "11px", borderRadius: "2px", textDecoration: "none" }}>+ NEW</Link>
-            <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "1px solid var(--border)", color: "var(--cyan)", padding: "7px 12px", borderRadius: "2px", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>☰</button>
-          </div>
-        </header>
-
-        <div style={{ display: "flex", flex: 1 }}>
-
           {/* SIDEBAR — desktop only */}
           <nav className="desktop-sidebar" style={{
             width: "240px", minWidth: "240px", borderRight: "1px solid var(--border)",

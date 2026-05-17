@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Project } from "@/types";
 import { useState } from "react";
 import AnalyticsChatPanel from "@/components/AnalyticsChatPanel";
-import ThemeToggle from "@/components/ThemeToggle";
+import GlobalNav from "@/components/GlobalNav";
 
 function getPct(project: Project): number {
   if (!project.versions || project.versions.length === 0) return 0;
@@ -89,51 +89,7 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
   return (
     <>
       <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "var(--font-jetbrains)" }}>
-
-        {/* TOP BAR */}
-        <header style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)",
-          background: "var(--surface)", backdropFilter: "blur(12px)",
-          position: "sticky", top: 0, zIndex: 100,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <Link href="/dashboard" style={{ fontFamily: "var(--font-jetbrains)", fontSize: "11px", color: "var(--muted)", textDecoration: "none", letterSpacing: "1px", whiteSpace: "nowrap" }}
-              onMouseEnter={e => e.currentTarget.style.color = "var(--cyan)"}
-              onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
-            >← DASHBOARD</Link>
-            <span style={{ color: "var(--border)", fontSize: "12px" }}>|</span>
-            <span style={{ fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 800, letterSpacing: "3px", color: "var(--cyan)" }}>
-              ANALYTICS
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span className="analytics-count" style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px", whiteSpace: "nowrap" }}>
-              <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{total}</span> PROJECTS
-            </span>
-            <ThemeToggle />
-            <button
-              onClick={() => setChatOpen(true)}
-              style={{
-                padding: "7px 12px",
-                background: "rgba(0,212,255,0.08)",
-                border: "1px solid rgba(0,212,255,0.3)",
-                color: "var(--cyan)",
-                fontFamily: "var(--font-jetbrains)",
-                fontSize: "11px",
-                letterSpacing: "1px",
-                borderRadius: "2px",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(0,212,255,0.15)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(0,212,255,0.08)"}
-            >
-              ◈ <span className="intel-label">PORTFOLIO </span>INTEL
-            </button>
-          </div>
-        </header>
-
+    <GlobalNav breadcrumb="ANALYTICS" />
         <div style={{ padding: "24px 16px", maxWidth: "1200px", margin: "0 auto" }}>
 
           {/* KPI ROW */}

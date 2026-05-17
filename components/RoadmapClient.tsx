@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Project } from "@/types";
-import ThemeToggle from "@/components/ThemeToggle";
+import GlobalNav from "@/components/GlobalNav";
 
 function getPhaseColor(status: string) {
   if (status === "complete" || status === "completed") return "#10b981";
@@ -37,40 +37,7 @@ export default function RoadmapClient({ projects }: { projects: Project[] }) {
         fontFamily: "var(--font-jetbrains)",
       }}>
 
-        {/* TOP BAR */}
-        <header style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)",
-          background: "var(--surface)", backdropFilter: "blur(12px)",
-          position: "sticky", top: 0, zIndex: 100,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <Link href="/dashboard" style={{
-              fontFamily: "var(--font-jetbrains)", fontSize: "11px",
-              color: "var(--muted)", textDecoration: "none", letterSpacing: "1px",
-              transition: "color 0.2s", whiteSpace: "nowrap",
-            }}
-              onMouseEnter={e => e.currentTarget.style.color = "var(--cyan)"}
-              onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
-            >
-              ← DASHBOARD
-            </Link>
-            <span style={{ color: "var(--border)", fontSize: "12px" }}>|</span>
-            <span style={{
-              fontFamily: "var(--font-syne)", fontSize: "14px", fontWeight: 800,
-              letterSpacing: "3px", color: "var(--cyan)",
-            }} className="roadmap-title">
-              PORTFOLIO ROADMAP
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-  <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "1px", whiteSpace: "nowrap" }}>
-    <span style={{ color: "var(--cyan)", fontWeight: 600 }}>{projects.length}</span>
-    <span className="ops-label"> ACTIVE OPERATIONS</span>
-  </div>
-  <ThemeToggle />
-</div>
-        </header>
+       <GlobalNav breadcrumb="ROADMAP" />
 
         <div style={{ padding: "24px 16px" }}>
 
