@@ -46,6 +46,7 @@ function KpiValue({ value, color }: { value: string | number; color: string }) {
 }
 
 export default function AnalyticsClient({ projects }: { projects: Project[] }) {
+  console.log(projects);
   const [chatOpen, setChatOpen] = useState(false);
   const total = projects.length;
   const launched = projects.filter(p => p.status === "launched").length;
@@ -78,13 +79,69 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
     launched: "#10b981", building: "#f59e0b", concept: "#8b5cf6",
   };
 
-  const kpis = [
-    { label: "Total Projects", value: total, color: "var(--cyan)" },
-    { label: "Avg Completion", value: `${avgPct}%`, color: "var(--cyan)" },
-    { label: "Tasks Done", value: `${allTasks.done}/${allTasks.total}`, color: "var(--green)" },
-    { label: "Versions Complete", value: `${completedVersions}/${totalVersions}`, color: "var(--purple)" },
-    { label: "Blocked", value: blocked, color: "var(--red)" },
-  ];
+  const totalBugs = projects.reduce(
+  (sum, p) => sum + (p.bugs?.length || 0),
+  0
+);
+
+const openBugs = projects.reduce(
+  (sum, p) =>
+    sum +
+    (p.bugs?.filter((b: any) => b.status !== "resolved")
+      .length || 0),
+  0
+);
+
+const criticalBugs = projects.reduce(
+  (sum, p) =>
+    sum +
+    (p.bugs?.filter(
+      (b: any) =>
+        b.severity === "critical" &&
+        b.status !== "resolved"
+    ).length || 0),
+  0
+);
+
+const resolvedBugs = projects.reduce(
+  (sum, p) =>
+    sum +
+    (p.bugs?.filter(
+      (b: any) => b.status === "resolved"
+    ).length || 0),
+  0
+);
+
+const kpis = [
+  {
+    label: "Total Projects",
+    value: total,
+    color: "var(--cyan)",
+  },
+  {
+    label: "Avg Completion",
+    value: `${avgPct}%`,
+    color: "var(--cyan)",
+  },
+  {
+    label: "Tasks Done",
+    value: `${allTasks.done}/${allTasks.total}`,
+    color: "var(--green)",
+  },
+  {
+    label: "Versions Complete",
+    value: `${completedVersions}/${totalVersions}`,
+    color: "var(--purple)",
+  },
+  {
+    label: "Open Bugs",
+    value: openBugs,
+    color:
+      openBugs > 0
+        ? "#ff3b5c"
+        : "var(--muted)",
+  },
+];
 
   return (
     <>
@@ -206,7 +263,268 @@ export default function AnalyticsClient({ projects }: { projects: Project[] }) {
               })}
             </div>
           </div>
+{/* BUG ANALYTICS */}
+<div
+  style={{
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "4px",
+    overflow: "hidden",
+    marginTop: "16px",
+  }}
+>
+  <div
+    style={{
+      padding: "14px 20px",
+      borderBottom: "1px solid var(--border)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: "10px",
+    }}
+  >
+    <span
+      style={{
+        fontFamily: "var(--font-syne)",
+        fontSize: "12px",
+        fontWeight: 700,
+        letterSpacing: "1px",
+        color: "#ff3b5c",
+      }}
+    >
+      BUG OVERVIEW
+    </span>
 
+    <div
+      style={{
+        display: "flex",
+        gap: "8px",
+        flexWrap: "wrap",
+      }}
+    >
+      <span
+        style={{
+          fontSize: "9px",
+          padding: "2px 8px",
+          borderRadius: "2px",
+          background: "rgba(255,59,92,0.1)",
+          border:
+            "1px solid rgba(255,59,92,0.25)",
+          color: "#ff3b5c",
+          fontWeight: 700,
+          letterSpacing: "1px",
+        }}
+      >
+        {openBugs} OPEN
+      </span>
+
+      <span
+        style={{
+          fontSize: "9px",
+          padding: "2px 8px",
+          borderRadius: "2px",
+          background: "rgba(16,185,129,0.1)",
+          border:
+            "1px solid rgba(16,185,129,0.25)",
+          color: "var(--green)",
+          fontWeight: 700,
+          letterSpacing: "1px",
+        }}
+      >
+        {resolvedBugs} RESOLVED
+      </span>
+
+      <span
+        style={{
+          fontSize: "9px",
+          padding: "2px 8px",
+          borderRadius: "2px",
+          background: "rgba(255,140,0,0.1)",
+          border:
+            "1px solid rgba(255,140,0,0.25)",
+          color: "#ff8c00",
+          fontWeight: 700,
+          letterSpacing: "1px",
+        }}
+      >
+        {criticalBugs} CRITICAL
+      </span>
+    </div>
+  </div>
+
+  <div
+    style={{
+      padding: "16px 20px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+    }}
+  >
+    {[...projects]
+      .filter(
+        p => p.bugs && p.bugs.length > 0
+      )
+      .sort(
+        (a, b) =>
+          (b.bugs?.filter(
+            (x: any) =>
+              x.status !== "resolved"
+          ).length || 0) -
+          (a.bugs?.filter(
+            (x: any) =>
+              x.status !== "resolved"
+          ).length || 0)
+      )
+      .map(project => {
+        const bugs = project.bugs || [];
+
+        const open =
+          bugs.filter(
+            (b: any) =>
+              b.status !== "resolved"
+          ).length || 0;
+
+        const resolved =
+          bugs.filter(
+            (b: any) =>
+              b.status === "resolved"
+          ).length || 0;
+
+        const critical =
+          bugs.filter(
+            (b: any) =>
+              b.severity === "critical" &&
+              b.status !== "resolved"
+          ).length || 0;
+
+        return (
+          <Link
+            key={project.id}
+            href={`/projects/${project.id}`}
+            style={{
+              textDecoration: "none",
+            }}
+          >
+            <div
+              style={{
+                background: "var(--surface2)",
+                border:
+                  "1px solid var(--border)",
+                borderRadius: "4px",
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent:
+                  "space-between",
+                gap: "12px",
+                transition:
+                  "border-color 0.15s",
+              }}
+              onMouseEnter={e =>
+                (e.currentTarget.style.borderColor =
+                  "var(--border2)")
+              }
+              onMouseLeave={e =>
+                (e.currentTarget.style.borderColor =
+                  "var(--border)")
+              }
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                  minWidth: 0,
+                  flex: 1,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily:
+                      "var(--font-syne)",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: "var(--text)",
+                  }}
+                >
+                  {project.name}
+                </span>
+
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "var(--muted)",
+                  }}
+                >
+                  {bugs.length} total bugs
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "9px",
+                    padding: "2px 7px",
+                    borderRadius: "2px",
+                    background:
+                      "rgba(255,59,92,0.1)",
+                    border:
+                      "1px solid rgba(255,59,92,0.25)",
+                    color: "#ff3b5c",
+                    fontWeight: 700,
+                  }}
+                >
+                  {open} OPEN
+                </span>
+
+                <span
+                  style={{
+                    fontSize: "9px",
+                    padding: "2px 7px",
+                    borderRadius: "2px",
+                    background:
+                      "rgba(16,185,129,0.1)",
+                    border:
+                      "1px solid rgba(16,185,129,0.25)",
+                    color: "var(--green)",
+                    fontWeight: 700,
+                  }}
+                >
+                  {resolved} FIXED
+                </span>
+
+                {critical > 0 && (
+                  <span
+                    style={{
+                      fontSize: "9px",
+                      padding: "2px 7px",
+                      borderRadius: "2px",
+                      background:
+                        "rgba(255,140,0,0.1)",
+                      border:
+                        "1px solid rgba(255,140,0,0.25)",
+                      color: "#ff8c00",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {critical} CRITICAL
+                  </span>
+                )}
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+  </div>
+</div>
         </div>
       </div>
 

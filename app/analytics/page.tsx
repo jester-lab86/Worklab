@@ -70,10 +70,10 @@ export default async function AnalyticsPage() {
       return [];
     }
   })(),
-
-  bugs: Array.isArray(r.bugs)
-    ? r.bugs
-    : [],
+bugs:
+  typeof r.bugs === "string"
+    ? JSON.parse(r.bugs)
+    : (r.bugs || []),
 }));
 
   return <AnalyticsClient projects={projects} />;
