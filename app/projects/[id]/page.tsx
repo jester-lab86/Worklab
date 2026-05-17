@@ -10,7 +10,7 @@ import { logActivity } from "@/lib/logActivity";
 import ActivityFeed from "@/components/ActivityFeed";
 import DependenciesPanel from "@/components/DependenciesPanel";
 import BugsPanel from "@/components/BugsPanel";
-import { parseMarkdown } from "@/lib/parseMarkdown";
+import { parseProjectMarkdown } from "@/lib/parseMarkdown";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
