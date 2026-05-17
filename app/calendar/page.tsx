@@ -263,32 +263,165 @@ export default function CalendarPage() {
     </div>
   </div>
 
-  {loading ? (
+{loading ? (
+  <div
+    style={{
+      padding: "40px",
+      textAlign: "center",
+      color: "var(--muted)",
+      fontFamily: "var(--font-jetbrains)",
+      fontSize: "12px",
+      letterSpacing: "2px",
+    }}
+  >
+    LOADING...
+  </div>
+) : (
+  <div>
+    {/* DAYS HEADER */}
     <div
       style={{
-        padding: "40px",
-        textAlign: "center",
-        color: "var(--muted)",
-        fontFamily: "var(--font-jetbrains)",
-        fontSize: "12px",
-        letterSpacing: "2px",
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        borderBottom: "1px solid var(--border)",
       }}
     >
-      LOADING...
+      {DAYS.map((day) => (
+        <div
+          key={day}
+          style={{
+            padding: "12px",
+            textAlign: "center",
+            fontSize: "10px",
+            letterSpacing: "1px",
+            color: "var(--muted)",
+            borderRight: "1px solid var(--border)",
+          }}
+        >
+          {day}
+        </div>
+      ))}
     </div>
-  ) : (
+
+    {/* CALENDAR GRID */}
     <div
       style={{
-        padding: "40px",
-        textAlign: "center",
-        color: "var(--muted)",
-        fontFamily: "var(--font-jetbrains)",
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
       }}
     >
-      Calendar render functions were removed.
-      Re-add renderMonth/renderWeek/renderDay.
+      {Array.from({
+        length: new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          0
+        ).getDate(),
+      }).map((_, i) => {
+        const day = i + 1;
+
+        const date = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth(),
+          day
+        );
+
+        const dateStr = toLocalDateStr(date);
+
+        const dayTasks = tasksByDate(dateStr);
+
+        const isToday = dateStr === todayStr;
+
+        return (
+          <div
+            key={dateStr}
+            onClick={() =>
+              setSelectedDay(dateStr)
+            }
+            style={{
+              minHeight: "140px",
+              borderRight:
+                "1px solid var(--border)",
+              borderBottom:
+                "1px solid var(--border)",
+              padding: "10px",
+              cursor: "pointer",
+              background: isToday
+                ? "rgba(0,212,255,0.04)"
+                : "transparent",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 700,
+                marginBottom: "8px",
+                color: isToday
+                  ? "var(--cyan)"
+                  : "var(--text)",
+              }}
+            >
+              {day}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              {dayTasks
+                .slice(0, 4)
+                .map((task) => (
+                  <div
+                    key={task.taskId}
+                    style={{
+                      background:
+                        task.done
+                          ? "rgba(16,185,129,0.12)"
+                          : task.isOverdue
+                          ? "rgba(255,59,92,0.12)"
+                          : "rgba(0,212,255,0.08)",
+                      border: task.done
+                        ? "1px solid rgba(16,185,129,0.2)"
+                        : task.isOverdue
+                        ? "1px solid rgba(255,59,92,0.2)"
+                        : "1px solid rgba(0,212,255,0.15)",
+                      borderRadius: "2px",
+                      padding: "5px 6px",
+                      fontSize: "10px",
+                      lineHeight: 1.4,
+                      color: task.done
+                        ? "var(--green)"
+                        : task.isOverdue
+                        ? "#ff3b5c"
+                        : "var(--cyan)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {task.description}
+                  </div>
+                ))}
+
+              {dayTasks.length > 4 && (
+                <div
+                  style={{
+                    fontSize: "9px",
+                    color: "var(--muted)",
+                  }}
+                >
+                  +{dayTasks.length - 4} more
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
-  )}
+  </div>
+)}
 </div>
       </div>
     </div>
