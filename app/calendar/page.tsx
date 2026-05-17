@@ -191,6 +191,105 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
+        {/* CALENDAR CARD */}
+<div
+  style={{
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "4px",
+    overflow: "hidden",
+  }}
+>
+  {/* Calendar toolbar */}
+  <div
+    style={{
+      padding: "14px 20px",
+      borderBottom: "1px solid var(--border)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: "10px",
+    }}
+  >
+    <span
+      style={{
+        fontFamily: "var(--font-syne)",
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "var(--text)",
+      }}
+    >
+      {MONTHS[currentDate.getMonth()]}{" "}
+      {currentDate.getFullYear()}
+    </span>
+
+    <div
+      style={{
+        display: "flex",
+        borderRadius: "2px",
+        overflow: "hidden",
+        border: "1px solid var(--border2)",
+      }}
+    >
+      {(["month", "week", "day"] as const).map(
+        (v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            style={{
+              padding: "6px 14px",
+              background:
+                view === v
+                  ? "var(--cyan-dim)"
+                  : "transparent",
+              border: "none",
+              color:
+                view === v
+                  ? "var(--cyan)"
+                  : "var(--muted)",
+              fontFamily:
+                "var(--font-jetbrains)",
+              fontSize: "10px",
+              cursor: "pointer",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+            }}
+          >
+            {v}
+          </button>
+        )
+      )}
+    </div>
+  </div>
+
+  {loading ? (
+    <div
+      style={{
+        padding: "40px",
+        textAlign: "center",
+        color: "var(--muted)",
+        fontFamily: "var(--font-jetbrains)",
+        fontSize: "12px",
+        letterSpacing: "2px",
+      }}
+    >
+      LOADING...
+    </div>
+  ) : (
+    <div
+      style={{
+        padding: "40px",
+        textAlign: "center",
+        color: "var(--muted)",
+        fontFamily: "var(--font-jetbrains)",
+      }}
+    >
+      Calendar render functions were removed.
+      Re-add renderMonth/renderWeek/renderDay.
+    </div>
+  )}
+</div>
       </div>
     </div>
   );

@@ -7,17 +7,31 @@ import GlobalNav from "@/components/GlobalNav";
 
 function getPct(project: Project) {
   if (project.versions && project.versions.length > 0) {
-    const allPhases = project.versions.flatMap(v => v.phases || []);
+    const allPhases = project.versions.flatMap(
+      v => v.phases || []
+    );
+
     if (allPhases.length > 0) {
-      const done = allPhases.filter(p => p.completed).length;
-      return Math.round((done / allPhases.length) * 100);
+      const done = allPhases.filter(
+        p => p.completed
+      ).length;
+
+      return Math.round(
+        (done / allPhases.length) * 100
+      );
     }
   }
 
-  if (!project.phases || project.phases.length === 0) return 0;
+  if (!project.phases || project.phases.length === 0)
+    return 0;
 
-  const done = project.phases.filter(p => p.completed).length;
-  return Math.round((done / project.phases.length) * 100);
+  const done = project.phases.filter(
+    p => p.completed
+  ).length;
+
+  return Math.round(
+    (done / project.phases.length) * 100
+  );
 }
 
 function getTypeIcon(type: string) {
@@ -33,79 +47,20 @@ export default function DashboardClient({
   projects: Project[];
 }) {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "priority">("priority");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  const PRIORITY_ORDER = ["CRITICAL", "HIGH", "NORMAL", "BACKLOG"];
-
-  const priorityAccent = (priority: string) => {
-    if (priority === "CRITICAL") return "#ff3b5c";
-    if (priority === "HIGH") return "#ff8c00";
-    if (priority === "BACKLOG") return "#2a3a52";
-    return "var(--cyan)";
-  };
-
-  const priorityTagStyle = (
-    priority: string
-  ): React.CSSProperties => {
-    if (priority === "CRITICAL") {
-      return {
-        color: "#ff3b5c",
-        background: "rgba(255,59,92,0.1)",
-        border: "1px solid rgba(255,59,92,0.25)",
-      };
-    }
-
-    if (priority === "HIGH") {
-      return {
-        color: "#ff8c00",
-        background: "rgba(255,140,0,0.1)",
-        border: "1px solid rgba(255,140,0,0.25)",
-      };
-    }
-
-    if (priority === "BACKLOG") {
-      return {
-        color: "#3d5572",
-        background: "rgba(42,58,82,0.4)",
-        border: "1px solid #1e2d45",
-      };
-    }
-
-    return {
-      color: "var(--cyan)",
-      background: "var(--cyan-dim)",
-      border: "1px solid rgba(0,212,255,0.2)",
-    };
-  };
-
-  const filtered = projects
-    .filter(p => {
-      const matchesSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description
-          ?.toLowerCase()
-          .includes(search.toLowerCase()) ||
-        p.tech_stack?.some(t =>
-          t.toLowerCase().includes(search.toLowerCase())
-        );
-
-      const matchesType =
-        typeFilter === "all" ||
-        (p.project_type || "software") === typeFilter;
-
-      return matchesSearch && matchesType;
-    })
-    .sort((a, b) => {
-      const pctA = getPct(a);
-      const pctB = getPct(b);
-
-      if (pctB !== pctA) return pctB - pctA;
-
-      return a.name.localeCompare(b.name);
-    });
+  const filtered = projects.filter(p => {
+    return (
+      p.name
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      p.description
+        ?.toLowerCase()
+        .includes(search.toLowerCase())
+    );
+  });
 
   const total = projects.length;
+
   const launched = projects.filter(
     p => p.status === "launched"
   ).length;
@@ -122,28 +77,22 @@ export default function DashboardClient({
     p => p.blockers && p.blockers.trim().length > 0
   ).length;
 
-  const TYPE_FILTERS = [
-    { value: "all", label: "All" },
-    { value: "software", label: "💻" },
-    { value: "mechanical", label: "🔧" },
-    { value: "home", label: "🏠" },
-    { value: "other", label: "⚙️" },
-  ];
-
   return (
     <>
       <div
         style={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
           minHeight: "100vh",
+          background: "var(--bg)",
         }}
       >
         <GlobalNav breadcrumb="DASHBOARD" />
 
-        <div style={{ display: "flex", flex: 1 }}>
+        <div
+          style={{
+            display: "flex",
+            minHeight: "calc(100vh - 56px)",
+          }}
+        >
           {/* SIDEBAR */}
           <nav
             className="desktop-sidebar"
@@ -152,10 +101,6 @@ export default function DashboardClient({
               minWidth: "240px",
               borderRight: "1px solid var(--border)",
               padding: "24px 0",
-              position: "sticky",
-              top: "56px",
-              height: "calc(100vh - 56px)",
-              overflowY: "auto",
             }}
           >
             <div
@@ -177,32 +122,19 @@ export default function DashboardClient({
                 <Link
                   key={p.id}
                   href={`/projects/${p.id}`}
-                  style={{ textDecoration: "none" }}
+                  style={{
+                    textDecoration: "none",
+                  }}
                 >
                   <div
                     style={{
                       padding: "10px 20px",
-                      cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
                       gap: "10px",
-                      transition: "all 0.15s",
-                      borderLeft: "2px solid transparent",
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background =
-                        "var(--cyan-dim)";
-                      e.currentTarget.style.borderLeftColor =
-                        "rgba(0,212,255,0.3)";
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background =
-                        "transparent";
-                      e.currentTarget.style.borderLeftColor =
-                        "transparent";
                     }}
                   >
-                    <span style={{ fontSize: "13px" }}>
+                    <span>
                       {getTypeIcon(
                         p.project_type || "software"
                       )}
@@ -210,14 +142,11 @@ export default function DashboardClient({
 
                     <span
                       style={{
-                        fontFamily: "var(--font-syne)",
-                        fontSize: "13px",
-                        fontWeight: 600,
                         flex: 1,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
                         color: "var(--text)",
+                        fontSize: "13px",
+                        fontFamily:
+                          "var(--font-syne)",
                       }}
                     >
                       {p.name}
@@ -225,12 +154,8 @@ export default function DashboardClient({
 
                     <span
                       style={{
+                        color: "var(--cyan)",
                         fontSize: "10px",
-                        fontWeight: 600,
-                        color:
-                          pct === 100
-                            ? "var(--green)"
-                            : "var(--cyan)",
                       }}
                     >
                       {pct}%
@@ -246,18 +171,37 @@ export default function DashboardClient({
             style={{
               flex: 1,
               padding: "24px 16px",
-              overflowY: "auto",
-              minWidth: 0,
             }}
           >
+            {/* SEARCH */}
+            <input
+              value={search}
+              onChange={e =>
+                setSearch(e.target.value)
+              }
+              placeholder="Search projects..."
+              style={{
+                width: "100%",
+                marginBottom: "20px",
+                background: "var(--surface)",
+                border:
+                  "1px solid var(--border)",
+                color: "var(--text)",
+                padding: "10px 14px",
+                borderRadius: "4px",
+              }}
+            />
+
+            {/* STATS */}
             <div
+              className="stats-grid"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
+                gridTemplateColumns:
+                  "repeat(5, 1fr)",
                 gap: "12px",
                 marginBottom: "24px",
               }}
-              className="stats-grid"
             >
               {[
                 {
@@ -290,32 +234,17 @@ export default function DashboardClient({
                   key={stat.label}
                   style={{
                     background: "var(--surface)",
-                    border: "1px solid var(--border)",
+                    border:
+                      "1px solid var(--border)",
                     borderRadius: "4px",
                     padding: "14px 16px",
-                    position: "relative",
-                    overflow: "hidden",
                   }}
                 >
                   <div
                     style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "2px",
-                      background: `linear-gradient(90deg, ${stat.color}, transparent)`,
-                    }}
-                  />
-
-                  <div
-                    style={{
-                      fontFamily: "var(--font-syne)",
                       fontSize: "28px",
                       fontWeight: 800,
                       color: stat.color,
-                      lineHeight: 1,
-                      marginBottom: "4px",
                     }}
                   >
                     {stat.value}
@@ -325,7 +254,6 @@ export default function DashboardClient({
                     style={{
                       fontSize: "10px",
                       color: "var(--muted)",
-                      letterSpacing: "1px",
                       textTransform: "uppercase",
                     }}
                   >
@@ -333,6 +261,99 @@ export default function DashboardClient({
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* PROJECT GRID */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fill,minmax(280px,1fr))",
+                gap: "14px",
+              }}
+            >
+              {filtered.map(p => {
+                const pct = getPct(p);
+
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/projects/${p.id}`}
+                    style={{
+                      textDecoration: "none",
+                    }}
+                  >
+                    <div
+                      style={{
+                        background:
+                          "var(--surface)",
+                        border:
+                          "1px solid var(--border)",
+                        borderRadius: "4px",
+                        padding: "20px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <span>
+                          {getTypeIcon(
+                            p.project_type ||
+                              "software"
+                          )}
+                        </span>
+
+                        <span
+                          style={{
+                            fontFamily:
+                              "var(--font-syne)",
+                            fontWeight: 700,
+                            color:
+                              "var(--text)",
+                          }}
+                        >
+                          {p.name}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          background:
+                            "var(--surface3)",
+                          height: "4px",
+                          borderRadius: "2px",
+                          overflow: "hidden",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: "100%",
+                            background:
+                              "var(--cyan)",
+                          }}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color:
+                            "var(--muted)",
+                        }}
+                      >
+                        {pct}% COMPLETE
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </main>
         </div>
@@ -346,10 +367,6 @@ export default function DashboardClient({
 
           .stats-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-          }
-
-          .stats-grid > div:last-child {
-            grid-column: span 2;
           }
         }
       `}</style>
