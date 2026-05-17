@@ -1114,7 +1114,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
                 <div style={{ flex: 1, height: "1px", background: "var(--border)", opacity: 0.5 }} />
                 <span style={{ fontSize: "9px", color: "var(--muted)" }}>{fGroup.tasks.filter(t => !t.dueDate && t.done).length}/{fGroup.tasks.filter(t => !t.dueDate).length}</span>
               </div>
-              {fGroup.tasks.filter(t => !t.dueDate).filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
+              {fGroup.tasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).map((task, taskIdx) => (
                 <div key={task.id} draggable onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)} onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
                   style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px 8px 28px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
@@ -1131,13 +1131,13 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
           ))}
         </div>
       ))}
-      {unassignedTasks.filter(t => !t.dueDate).length > 0 && (
+      {unassignedTasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).length > 0 && (
         <div>
           <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--muted)", textTransform: "uppercase" }}>Unassigned</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
           </div>
-          {unassignedTasks.filter(t => !t.dueDate).filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
+          {unassignedTasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).map((task, taskIdx) => (
             <div key={task.id} draggable onDragStart={() => handleDragStart(null, taskIdx)} onDragEnter={() => handleDragEnter(null, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
               style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
@@ -1152,7 +1152,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
           ))}
         </div>
       )}
-      {tasks.filter(t => !t.dueDate).length === 0 && (
+      {tasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).length === 0 && (
         <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>No unscheduled tasks ✓</div>
       )}
     </>
@@ -1160,7 +1160,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
     (() => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const scheduledTasks = tasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+      const scheduledTasks = tasks.filter(t => t.dueDate && !t.done).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
       if (scheduledTasks.length === 0) return (
         <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>No scheduled tasks — add a due date to a task to see it here.</div>
       );
