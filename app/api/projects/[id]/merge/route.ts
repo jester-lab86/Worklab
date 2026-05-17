@@ -8,17 +8,17 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   if (!rateLimit(ip)) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id } = await params;
   const { versions: incomingVersions } = await req.json();
 
-  // Fetch existing project
-  const { rows } = await pool.query("SELECT * FROM projects WHERE id = $1", [params.id]);
+  const { rows } = await pool.query("SELECT * FROM projects WHERE id = $1", [id]);
   if (!rows[0]) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const project = rows[0];
@@ -28,7 +28,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const added = { versions: 0, features: 0, tasks: 0 };
   const skipped = { versions: 0, features: 0, tasks: 0 };
-
   const merged = [...existing];
 
   for (const inV of incomingVersions) {
@@ -37,13 +36,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     );
 
     if (!existingV) {
-      // Brand new version — add it whole
       merged.push(inV);
       added.versions++;
       added.features += (inV.features || []).length;
       added.tasks += (inV.phases || []).length;
     } else {
-      // Version exists — merge features and phases in
       for (const inF of inV.features || []) {
         const existingF = existingV.features?.find(
           (f: any) => f.name?.toLowerCase() === inF.name?.toLowerCase()
@@ -70,10 +67,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
   }
 
-  // Patch the project with merged versions
   await pool.query(
     "UPDATE projects SET versions = $1 WHERE id = $2",
-    [JSON.stringify(merged), params.id]
+    [JSON.stringify(merged), id]
   );
 
   return NextResponse.json({ success: true, added, skipped, merged });
