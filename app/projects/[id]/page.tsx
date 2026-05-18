@@ -218,20 +218,31 @@ const [mergeDone, setMergeDone] = useState(false);
         setNameVal(data.name || "");
         setVersionVal(data.version || "");
         setProgressVal(data.current_progress || "");
-        const raw = Array.isArray(data.still_to_complete) ? data.still_to_complete : [];
-        setTasks(normalizeTasks(raw));
+        let raw = data.still_to_complete;
+if (typeof raw === "string") {
+  try { raw = JSON.parse(raw); } catch { raw = []; }
+}
+if (typeof raw === "string") {
+  try { raw = JSON.parse(raw); } catch { raw = []; }
+}
+if (!Array.isArray(raw)) raw = [];
+const normalized = normalizeTasks(raw);
+console.log("DEBUG tasks:", JSON.stringify(normalized).slice(0, 500));
+setTasks(normalized);
         if (data.versions?.length > 0) {
           const collapsed: Record<string, boolean> = {};
-          data.versions.forEach((v: any) => { collapsed[v.number] = true; });
+          data.versions.forEach((v: any) => { collapsed[v.number] = false; });
           setCollapsedTaskGroups(collapsed);
         }
       });
 
     // ADD THIS — fetch all projects for the dependencies dropdown
-    fetch("/api/projects")
-      .then(r => r.json())
-      .then(data => setAllProjects(data.map((p: any) => ({ id: p.id, name: p.name }))));
-
+fetch("/api/projects")
+  .then(r => r.json())
+  .then(data => {
+    const list = Array.isArray(data) ? data : (data.projects || []);
+    setAllProjects(list.map((p: any) => ({ id: p.id, name: p.name })));
+  });
   }, [id]);
 
   async function patchProject(updated: Project, updatedTasks?: Task[]) {
@@ -721,40 +732,7 @@ setMobileMenuOpen(false); }} style={{ padding: "8px 14px", borderRadius: "2px", 
         {/* TOP BAR */}
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: "56px", borderBottom: "1px solid var(--border)", background: "var(--surface)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-  <button
-    onClick={() => router.push("/dashboard")}
-    style={{
-      background: "none",
-      border: "none",
-      color: "var(--muted)",
-      cursor: "pointer",
-      fontFamily: "var(--font-jetbrains)",
-      fontSize: "11px",
-      letterSpacing: "1px",
-      whiteSpace: "nowrap",
-      flexShrink: 0
-    }}
-  >
-    ← DASHBOARD
-  </button>
-
-  <span style={{ color: "var(--border2)", fontSize: "12px" }}>
-    ›
-  </span>
-
-  <span
-    style={{
-      fontFamily: "var(--font-jetbrains)",
-      fontSize: "10px",
-      color: "var(--muted)",
-      letterSpacing: "1px",
-      textTransform: "uppercase"
-    }}
-  >
-    OPS CENTER
-  </span>
-</div>
+            <button onClick={() => router.push("/dashboard")} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontFamily: "var(--font-jetbrains)", fontSize: "11px", letterSpacing: "1px", whiteSpace: "nowrap", flexShrink: 0 }}>←</button>
             <div style={{ width: "1px", height: "20px", background: "var(--border)", flexShrink: 0 }} />
             {editingName ? (
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1147,7 +1125,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
                 <div style={{ flex: 1, height: "1px", background: "var(--border)", opacity: 0.5 }} />
                 <span style={{ fontSize: "9px", color: "var(--muted)" }}>{fGroup.tasks.filter(t => !t.dueDate && t.done).length}/{fGroup.tasks.filter(t => !t.dueDate).length}</span>
               </div>
-              {fGroup.tasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).map((task, taskIdx) => (
+              {fGroup.tasks.filter(t => !t.dueDate).filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
                 <div key={task.id} draggable onDragStart={() => handleDragStart(fGroup.featureId, taskIdx)} onDragEnter={() => handleDragEnter(fGroup.featureId, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
                   style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px 8px 28px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
@@ -1164,13 +1142,13 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
           ))}
         </div>
       ))}
-      {unassignedTasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).length > 0 && (
+      {unassignedTasks.filter(t => !t.dueDate).length > 0 && (
         <div>
           <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "9px", fontFamily: "var(--font-jetbrains)", fontWeight: 700, letterSpacing: "1.5px", color: "var(--muted)", textTransform: "uppercase" }}>Unassigned</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
           </div>
-          {unassignedTasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).map((task, taskIdx) => (
+          {unassignedTasks.filter(t => !t.dueDate).filter(t => taskFilter === "all" || !t.done).map((task, taskIdx) => (
             <div key={task.id} draggable onDragStart={() => handleDragStart(null, taskIdx)} onDragEnter={() => handleDragEnter(null, taskIdx)} onDragEnd={handleDragEnd} onDragOver={e => e.preventDefault()}
               style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 20px", borderBottom: "1px solid var(--border)", cursor: "grab" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
@@ -1185,7 +1163,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
           ))}
         </div>
       )}
-      {tasks.filter(t => taskFilter === "all" ? true : (!t.dueDate && !t.done)).length === 0 && (
+      {tasks.filter(t => !t.dueDate).length === 0 && (
         <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>No unscheduled tasks ✓</div>
       )}
     </>
@@ -1193,7 +1171,7 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
     (() => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const scheduledTasks = tasks.filter(t => t.dueDate && !t.done).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+      const scheduledTasks = tasks.filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
       if (scheduledTasks.length === 0) return (
         <div style={{ padding: "20px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>No scheduled tasks — add a due date to a task to see it here.</div>
       );

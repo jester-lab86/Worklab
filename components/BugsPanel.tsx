@@ -107,8 +107,12 @@ export default function BugsPanel({ projectId }: Props) {
     load();
   }
 
-  const openBugs = bugs.filter(b => b.status !== "resolved");
-  const resolvedBugs = bugs.filter(b => b.status === "resolved");
+  const openBugs = (Array.isArray(bugs) ? bugs : []).filter(
+  b => b.status !== "resolved"
+);
+  const resolvedBugs = (Array.isArray(bugs) ? bugs : []).filter(
+  b => b.status === "resolved"
+);
 
   const inputStyle: React.CSSProperties = {
     width: "100%", background: "var(--surface3)", border: "1px solid var(--border2)",
