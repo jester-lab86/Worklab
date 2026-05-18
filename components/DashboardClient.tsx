@@ -40,6 +40,15 @@ function getPriorityColor(priority: string) {
 
 type ViewMode = "status" | "priority" | "grid";
 
+interface LiveStats {
+  openBugs: number;
+  criticalBugs: number;
+  todayTasks: number;
+  weekTasks: number;
+  overdueTasks: number;
+  loaded: boolean;
+}
+
 export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<ViewMode>("status");
@@ -51,6 +60,9 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState<string>("");
   const aiEndRef = useRef<HTMLDivElement>(null);
+  const [liveStats, setLiveStats] = useState<LiveStats>({
+    openBugs: 0, criticalBugs: 0, todayTasks: 0, weekTasks: 0, overdueTasks: 0, loaded: false,
+  });
 
   const total = projects.length;
   const launched = projects.filter(p => p.status === "launched").length;
@@ -58,6 +70,29 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   const concept = projects.filter(p => p.status === "concept").length;
   const blocked = projects.filter(p => p.blockers && p.blockers.trim().length > 0).length;
   const avgPct = total ? Math.round(projects.reduce((s, p) => s + getPct(p), 0) / total) : 0;
+
+  const allTasks = projects.flatMap(p => {
+    const raw = Array.isArray(p.still_to_complete) ? p.still_to_complete : [];
+    return raw.map((t: any) => {
+      if (typeof t === "string") { try { return JSON.parse(t); } catch { return { done: false }; } }
+      return t;
+    });
+  });
+  const doneTasks = allTasks.filter((t: any) => t.done).length;
+  const totalTaskCount = allTasks.length;
+  const taskCompletionPct = totalTaskCount > 0 ? Math.round((doneTasks / totalTaskCount) * 100) : 0;
+
+  const versionsInProgress = projects.flatMap(p => p.versions || []).filter(v => {
+    const phases = v.phases || [];
+    const done = phases.filter((ph: any) => ph.completed).length;
+    return done > 0 && done < phases.length;
+  }).length;
+
+  const onTrackProjects = projects.filter(p => {
+    const pct = getPct(p);
+    return pct >= 50 || p.status === "launched";
+  }).length;
+  const onTrackPct = total > 0 ? Math.round((onTrackProjects / total) * 100) : 0;
 
   const filtered = projects.filter(p => {
     const q = search.toLowerCase();
@@ -67,6 +102,51 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
       p.tech_stack?.some(t => t.toLowerCase().includes(q))
     );
   });
+
+  useEffect(() => {
+    async function fetchLiveStats() {
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const weekEnd = new Date(today);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        const weekStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, "0")}-${String(weekEnd.getDate()).padStart(2, "0")}`;
+
+        const [bugsRes, calRes] = await Promise.all([
+          fetch("/api/bugs"),
+          fetch("/api/calendar"),
+        ]);
+
+        let openBugs = 0;
+        let criticalBugs = 0;
+        if (bugsRes.ok) {
+          const bugs = await bugsRes.json();
+          openBugs = bugs.filter((b: any) => b.status === "open").length;
+          criticalBugs = bugs.filter((b: any) => b.status === "open" && b.severity === "critical").length;
+        }
+
+        let todayTasks = 0;
+        let weekTasks = 0;
+        let overdueTasks = 0;
+        if (calRes.ok) {
+          const calData = await calRes.json();
+          const tasks = calData.tasks || calData || [];
+          tasks.forEach((t: any) => {
+            if (!t.dueDate || t.done) return;
+            if (t.dueDate === todayStr) todayTasks++;
+            if (t.dueDate <= weekStr) weekTasks++;
+            if (t.dueDate < todayStr) overdueTasks++;
+          });
+        }
+
+        setLiveStats({ openBugs, criticalBugs, todayTasks, weekTasks, overdueTasks, loaded: true });
+      } catch {
+        setLiveStats(s => ({ ...s, loaded: true }));
+      }
+    }
+    fetchLiveStats();
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -114,7 +194,7 @@ ${projects.map(p => {
   return `- ${p.name} (${p.status}, ${p.priority || "NORMAL"} priority, ${pct}% complete)${p.blockers?.trim() ? ` [BLOCKED: ${p.blockers}]` : ""}`;
 }).join("\n")}
 
-Total: ${total} projects. ${launched} launched, ${building} building, ${concept} concept. ${blocked} blocked. Average completion: ${avgPct}%.
+Total: ${total} projects. ${launched} launched, ${building} building, ${concept} concept. ${blocked} blocked. Average completion: ${avgPct}%. Open bugs: ${liveStats.openBugs}. Tasks due today: ${liveStats.todayTasks}. Overdue tasks: ${liveStats.overdueTasks}.
 
 Answer questions about the portfolio, suggest priorities, identify risks, and give actionable recommendations. Be concise and direct.`;
 
@@ -132,6 +212,15 @@ Answer questions about the portfolio, suggest priorities, identify risks, and gi
       setAiMessages(prev => [...prev, { role: "assistant", content: "Error contacting AI." }]);
     }
     setAiLoading(false);
+  }
+
+  function Stat({ label, value, color = "var(--text)" }: { label: string; value: string | number; color?: string }) {
+    return (
+      <div>
+        <div style={{ fontFamily: "var(--font-syne)", fontSize: "20px", fontWeight: 800, color, lineHeight: 1, marginBottom: "2px" }}>{value}</div>
+        <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px", textTransform: "uppercase" }}>{label}</div>
+      </div>
+    );
   }
 
   function ProjectCard({ p }: { p: Project }) {
@@ -369,68 +458,109 @@ Answer questions about the portfolio, suggest priorities, identify risks, and gi
 
             {/* ANALYTICS STRIP */}
             <div style={{ marginTop: "32px", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "12px" }} className="analytics-strip">
+
+              {/* Completion over time */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "6px", padding: "16px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                   <span style={{ fontFamily: "var(--font-syne)", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", color: "var(--muted)" }}>COMPLETION OVER TIME</span>
-                  <Link href="/analytics" style={{ fontSize: "10px", color: "var(--cyan)", textDecoration: "none", fontFamily: "var(--font-jetbrains)" }}>View all →</Link>
+                  <Link href="/analytics" style={{ fontSize: "10px", color: "var(--cyan)", textDecoration: "none", fontFamily: "var(--font-jetbrains)" }}>Full report →</Link>
                 </div>
                 {aiInsight && (
                   <div style={{ marginBottom: "12px", padding: "8px 10px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: "4px", fontSize: "10px", color: "#f59e0b", fontFamily: "var(--font-jetbrains)", lineHeight: 1.6 }}>
                     ◈ {aiInsight}
                   </div>
                 )}
-                <div style={{ height: "80px", display: "flex", alignItems: "flex-end", gap: "4px" }}>
+                <div style={{ height: "60px", display: "flex", alignItems: "flex-end", gap: "3px", marginBottom: "12px" }}>
                   {[20, 35, 28, 45, 52, 48, 60, 65, 58, 72, 78, avgPct].map((h, i) => (
                     <div key={i} style={{ flex: 1, background: i === 11 ? "var(--cyan)" : "rgba(0,212,255,0.2)", borderRadius: "2px 2px 0 0", height: `${h}%`, transition: "height 0.3s ease" }} />
                   ))}
                 </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+                  <Stat label="Total Tasks" value={totalTaskCount} color="var(--text)" />
+                  <Stat label="Completed" value={doneTasks} color="var(--green)" />
+                  <Stat label="Rate" value={`${taskCompletionPct}%`} color="var(--cyan)" />
+                </div>
               </div>
+
+              {/* Throughput */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "6px", padding: "16px" }}>
-                <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "12px" }}>THROUGHPUT</div>
-                <div style={{ fontFamily: "var(--font-syne)", fontSize: "36px", fontWeight: 800, color: "var(--cyan)", lineHeight: 1, marginBottom: "4px" }}>{avgPct}%</div>
-                <div style={{ fontSize: "10px", color: "var(--muted)", marginBottom: "12px" }}>TASK COMPLETION RATE</div>
-                <Link href="/analytics" style={{ fontSize: "10px", color: "var(--cyan)", textDecoration: "none", fontFamily: "var(--font-jetbrains)" }}>→ Analytics</Link>
+                <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "10px" }}>THROUGHPUT</div>
+                <div style={{ fontFamily: "var(--font-syne)", fontSize: "36px", fontWeight: 800, color: "var(--cyan)", lineHeight: 1, marginBottom: "2px" }}>{taskCompletionPct}%</div>
+                <div style={{ fontSize: "9px", color: "var(--muted)", marginBottom: "14px", letterSpacing: "1px" }}>TASK COMPLETION</div>
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <Stat label="Versions Active" value={versionsInProgress} color="var(--amber)" />
+                  <Stat label="Avg Progress" value={`${avgPct}%`} color="var(--purple)" />
+                </div>
               </div>
+
+              {/* Status distribution */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "6px", padding: "16px" }}>
                 <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "12px" }}>STATUS DISTRIBUTION</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {[
                     { label: "Launched", value: launched, color: "var(--green)" },
                     { label: "Building", value: building, color: "var(--amber)" },
                     { label: "Concept", value: concept, color: "var(--purple)" },
                   ].map(s => (
                     <div key={s.label}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                         <span style={{ fontSize: "10px", color: "var(--muted)" }}>{s.label}</span>
-                        <span style={{ fontSize: "10px", color: s.color, fontWeight: 700 }}>{s.value}</span>
+                        <span style={{ fontSize: "10px", color: s.color, fontWeight: 700 }}>{s.value} <span style={{ color: "var(--muted)", fontWeight: 400 }}>({total > 0 ? Math.round((s.value / total) * 100) : 0}%)</span></span>
                       </div>
-                      <div style={{ height: "3px", background: "var(--surface3)", borderRadius: "2px", overflow: "hidden" }}>
-                        <div style={{ height: "100%", background: s.color, width: total ? `${(s.value / total) * 100}%` : "0%", transition: "width 0.5s ease" }} />
+                      <div style={{ height: "4px", background: "var(--surface3)", borderRadius: "2px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", background: s.color, width: total ? `${(s.value / total) * 100}%` : "0%", transition: "width 0.5s ease", borderRadius: "2px" }} />
                       </div>
                     </div>
                   ))}
                 </div>
+                <div style={{ marginTop: "12px", borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
+                  <Stat label="On Track" value={`${onTrackPct}%`} color={onTrackPct >= 70 ? "var(--green)" : "var(--amber)"} />
+                </div>
               </div>
+
+              {/* Live Intel */}
               <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "6px", padding: "16px" }}>
-                <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "12px" }}>NEEDS ATTENTION</div>
-                <div style={{ fontFamily: "var(--font-syne)", fontSize: "36px", fontWeight: 800, color: blocked > 0 ? "var(--red)" : "var(--green)", lineHeight: 1, marginBottom: "4px" }}>{blocked}</div>
-                <div style={{ fontSize: "10px", color: "var(--muted)", marginBottom: "12px" }}>BLOCKED PROJECTS</div>
-                {projects.filter(p => p.blockers?.trim()).slice(0, 3).map(p => (
-                  <Link key={p.id} href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
-                    <div style={{ fontSize: "10px", color: "var(--red)", fontFamily: "var(--font-jetbrains)", padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>⚠ {p.name}</div>
-                  </Link>
-                ))}
+                <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px", marginBottom: "12px" }}>LIVE INTEL</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ padding: "8px 10px", background: liveStats.openBugs > 0 ? "rgba(239,68,68,0.06)" : "rgba(16,185,129,0.06)", border: `1px solid ${liveStats.openBugs > 0 ? "rgba(239,68,68,0.2)" : "rgba(16,185,129,0.2)"}`, borderRadius: "4px" }}>
+                    <div style={{ fontFamily: "var(--font-syne)", fontSize: "22px", fontWeight: 800, color: liveStats.openBugs > 0 ? "var(--red)" : "var(--green)", lineHeight: 1, marginBottom: "2px" }}>
+                      {!liveStats.loaded ? "—" : liveStats.openBugs}
+                    </div>
+                    <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px" }}>
+                      OPEN BUGS{liveStats.criticalBugs > 0 && <span style={{ color: "var(--red)" }}> · {liveStats.criticalBugs} CRITICAL</span>}
+                    </div>
+                  </div>
+                  <div style={{ padding: "8px 10px", background: liveStats.overdueTasks > 0 ? "rgba(239,68,68,0.06)" : "rgba(0,212,255,0.06)", border: `1px solid ${liveStats.overdueTasks > 0 ? "rgba(239,68,68,0.2)" : "rgba(0,212,255,0.2)"}`, borderRadius: "4px" }}>
+                    <div style={{ fontFamily: "var(--font-syne)", fontSize: "22px", fontWeight: 800, color: liveStats.overdueTasks > 0 ? "var(--red)" : "var(--cyan)", lineHeight: 1, marginBottom: "2px" }}>
+                      {!liveStats.loaded ? "—" : liveStats.overdueTasks}
+                    </div>
+                    <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px" }}>OVERDUE TASKS</div>
+                  </div>
+                  <div style={{ padding: "8px 10px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "4px" }}>
+                    <div style={{ fontFamily: "var(--font-syne)", fontSize: "22px", fontWeight: 800, color: "var(--amber)", lineHeight: 1, marginBottom: "2px" }}>
+                      {!liveStats.loaded ? "—" : liveStats.todayTasks}
+                    </div>
+                    <div style={{ fontSize: "9px", color: "var(--muted)", letterSpacing: "1px" }}>
+                      DUE TODAY{liveStats.weekTasks > 0 && <span style={{ color: "var(--amber)" }}> · {liveStats.weekTasks} THIS WEEK</span>}
+                    </div>
+                  </div>
+                  {blocked > 0 && projects.filter(p => p.blockers?.trim()).slice(0, 2).map(p => (
+                    <Link key={p.id} href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
+                      <div style={{ fontSize: "10px", color: "var(--red)", fontFamily: "var(--font-jetbrains)", padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>⚠ {p.name}</div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* ANALYTICS SHORTCUTS */}
             <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }} className="shortcuts-grid">
               {[
-                { label: "Velocity Report", sub: "View trends", icon: "▲", href: "/analytics", color: "var(--purple)" },
-                { label: "Bug Analytics", sub: "View metrics", icon: "⚡", href: "/bugs", color: "var(--red)" },
-                { label: "Calendar", sub: "Scheduled tasks", icon: "◷", href: "/calendar", color: "var(--amber)" },
-                { label: "Roadmap", sub: "Timeline view", icon: "◎", href: "/roadmap", color: "#3b82f6" },
-                { label: "Project Health", sub: "View status", icon: "◈", href: "/analytics", color: "var(--green)" },
+                { label: "Velocity Report", sub: `${avgPct}% avg completion`, icon: "▲", href: "/analytics", color: "var(--purple)" },
+                { label: "Bug Analytics", sub: liveStats.loaded ? `${liveStats.openBugs} open bugs` : "Loading...", icon: "⚡", href: "/bugs", color: "var(--red)" },
+                { label: "Calendar", sub: liveStats.loaded ? `${liveStats.todayTasks} due today` : "Loading...", icon: "◷", href: "/calendar", color: "var(--amber)" },
+                { label: "Roadmap", sub: `${versionsInProgress} versions active`, icon: "◎", href: "/roadmap", color: "#3b82f6" },
+                { label: "Project Health", sub: `${onTrackPct}% on track`, icon: "◈", href: "/analytics", color: "var(--green)" },
               ].map(s => (
                 <Link key={s.label} href={s.href} style={{ textDecoration: "none" }}>
                   <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "6px", padding: "14px", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", transition: "all 0.15s" }}
@@ -477,13 +607,11 @@ Answer questions about the portfolio, suggest priorities, identify risks, and gi
           </div>
           <button onClick={() => setAiOpen(false)} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "16px" }}>✕</button>
         </div>
-
         <div style={{ padding: "10px 20px", borderBottom: "1px solid var(--border)", background: "rgba(245,158,11,0.04)" }}>
           <div style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "1px" }}>
-            AWARE OF <span style={{ color: "#f59e0b", fontWeight: 700 }}>{total}</span> PROJECTS · <span style={{ color: "#f59e0b", fontWeight: 700 }}>{avgPct}%</span> AVG COMPLETION
+            <span style={{ color: "#f59e0b", fontWeight: 700 }}>{total}</span> PROJECTS · <span style={{ color: "#f59e0b", fontWeight: 700 }}>{avgPct}%</span> AVG · <span style={{ color: liveStats.openBugs > 0 ? "var(--red)" : "var(--green)", fontWeight: 700 }}>{liveStats.openBugs}</span> BUGS · <span style={{ color: liveStats.overdueTasks > 0 ? "var(--red)" : "var(--cyan)", fontWeight: 700 }}>{liveStats.overdueTasks}</span> OVERDUE
           </div>
         </div>
-
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
           {aiMessages.length === 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -517,7 +645,6 @@ Answer questions about the portfolio, suggest priorities, identify risks, and gi
           )}
           <div ref={aiEndRef} />
         </div>
-
         <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(245,158,11,0.15)" }}>
           <div style={{ display: "flex", gap: "8px" }}>
             <input
