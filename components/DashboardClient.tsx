@@ -81,13 +81,15 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   }
 
   async function setStatus(id: number, status: string) {
-    await fetch(`/api/projects/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    window.location.reload();
-  }
+  const project = projects.find(p => p.id === id);
+  if (!project) return;
+  await fetch(`/api/projects/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...project, status }),
+  });
+  window.location.reload();
+}
 
   function ProjectCard({ p }: { p: Project }) {
     const pct = getPct(p);
