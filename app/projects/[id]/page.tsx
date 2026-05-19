@@ -24,16 +24,7 @@ function getPct(versions: Version[]): number {
 }
 
 function getVersionStatus(v: Version): Version["status"] {
-  const allPhases = v.phases || [];
-  const allFeatures = v.features || [];
-  const total = allPhases.length + allFeatures.length;
-  if (total === 0) return v.status;
-  const donePhasesCount = allPhases.filter(p => p.completed).length;
-  const doneFeaturesCount = allFeatures.filter(f => f.status === "complete").length;
-  const done = donePhasesCount + doneFeaturesCount;
-  if (done === 0) return "planned";
-  if (done === total) return "complete";
-  return "in-progress";
+  return v.status;
 }
 
 function sortVersions(versions: Version[]): Version[] {
