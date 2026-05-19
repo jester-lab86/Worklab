@@ -51,7 +51,7 @@ interface LiveStats {
 
 export default function DashboardClient({ projects }: { projects: Project[] }) {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<ViewMode>("status");
+  const [view, setView] = useState<ViewMode>("priority");
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [aiOpen, setAiOpen] = useState(false);
