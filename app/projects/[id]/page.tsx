@@ -231,7 +231,7 @@ console.log("DEBUG tasks:", JSON.stringify(normalized).slice(0, 500));
 setTasks(normalized);
         if (data.versions?.length > 0) {
           const collapsed: Record<string, boolean> = {};
-          data.versions.forEach((v: any) => { collapsed[v.number] = false; });
+          data.versions.forEach((v: any) => { collapsed[v.number] = true; });
           setCollapsedTaskGroups(collapsed);
         }
       });
