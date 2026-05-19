@@ -11,6 +11,7 @@ import ActivityFeed from "@/components/ActivityFeed";
 import DependenciesPanel from "@/components/DependenciesPanel";
 import BugsPanel from "@/components/BugsPanel";
 import { parseProjectMarkdown } from "@/lib/parseMarkdown";
+import AINotesPanel from "@/components/AINotesPanel";
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -1219,6 +1220,9 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
 <BugsPanel projectId={id as string} />
               {/* DEPENDENCIES */}
 <DependenciesPanel projectId={id as string} allProjects={allProjects} />
+{/* AI NOTES */}
+<AINotesPanel projectId={id as string} />
+
 {/* ACTIVITY LOG */}
 <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", overflow: "hidden" }}>
   <div onClick={() => setActivityCollapsed(p => !p)} style={{ padding: "14px 20px", borderBottom: activityCollapsed ? "none" : "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
@@ -1274,8 +1278,13 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
       await logActivity(project.id, project.name, "task_added", description);
     }}
     onNoteAdded={async (note) => {
-      await logActivity(project.id, project.name, "note_added", note);
-    }}
+  await fetch("/api/notes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectId: project.id, content: note }),
+  });
+  await logActivity(project.id, project.name, "note_added", note);
+}}
     onStatusUpdated={async (target, targetId, newStatus) => {
       if (target === "project") {
         await patchProject({ ...project, status: newStatus as any });
