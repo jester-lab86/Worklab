@@ -83,10 +83,8 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   const taskCompletionPct = totalTaskCount > 0 ? Math.round((doneTasks / totalTaskCount) * 100) : 0;
 
   const versionsInProgress = projects.flatMap(p => p.versions || []).filter(v => {
-    const phases = v.phases || [];
-    const done = phases.filter((ph: any) => ph.completed).length;
-    return done > 0 && done < phases.length;
-  }).length;
+  return v.status === "in-progress";
+}).length;
 
   const onTrackProjects = projects.filter(p => {
     const pct = getPct(p);
