@@ -1264,7 +1264,45 @@ setEditingStatus(false); }} style={{ display: "block", width: "100%", padding: "
         </div>
       </div>
 
-      {chatOpen && project && <ChatPanel project={project} onClose={() => setChatOpen(false)} />}
+      {chatOpen && project && (
+  <ChatPanel
+    project={project}
+    onClose={() => setChatOpen(false)}
+    onTaskCreated={async ({ description, featureId }) => {
+      const newTask = { id: uid(), description, featureId, done: false, notes: "" };
+      await saveTasks([...tasks, newTask]);
+      await logActivity(project.id, project.name, "task_added", description);
+    }}
+    onNoteAdded={async (note) => {
+      await logActivity(project.id, project.name, "note_added", note);
+    }}
+    onStatusUpdated={async (target, targetId, newStatus) => {
+      if (target === "project") {
+        await patchProject({ ...project, status: newStatus as any });
+        await logActivity(project.id, project.name, "status_changed", `Status → ${newStatus}`);
+      } else if (target === "version") {
+        await patchProject({
+          ...project,
+          versions: project.versions.map(v =>
+            v.id === targetId ? { ...v, status: newStatus as any } : v
+          ),
+        });
+        await logActivity(project.id, project.name, "status_changed", `Version status → ${newStatus}`);
+      } else if (target === "feature") {
+        await patchProject({
+          ...project,
+          versions: project.versions.map(v => ({
+            ...v,
+            features: v.features.map(f =>
+              f.id === targetId ? { ...f, status: newStatus as any } : f
+            ),
+          })),
+        });
+        await logActivity(project.id, project.name, "feature_updated", `Feature status → ${newStatus}`);
+      }
+    }}
+  />
+)}
 
       <style>{`
         @media (max-width: 768px) {
