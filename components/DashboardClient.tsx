@@ -178,39 +178,58 @@ export default function DashboardClient({ projects }: { projects: Project[] }) {
   }
 
   async function sendAiMessage() {
-    if (!aiInput.trim() || aiLoading) return;
-    const userMsg = aiInput.trim();
-    setAiInput("");
-    setAiLoading(true);
-    const newMessages = [...aiMessages, { role: "user" as const, content: userMsg }];
-    setAiMessages(newMessages);
+  if (!aiInput.trim() || aiLoading) return;
+  const userMsg = aiInput.trim();
+  setAiInput("");
+  setAiLoading(true);
+  const newMessages = [...aiMessages, { role: "user" as const, content: userMsg }];
+  setAiMessages(newMessages);
 
-    const portfolioContext = `You are an AI assistant for FORGE, a project management dashboard. Here is the current portfolio:
+  const portfolioProject = {
+    name: "Portfolio Overview",
+    status: "building",
+    version: "—",
+    description: `Portfolio of ${total} projects. ${launched} launched, ${building} building, ${concept} concept. ${blocked} blocked.`,
+    tech_stack: [],
+    current_progress: `Average completion: ${avgPct}%. Task completion rate: ${taskCompletionPct}%.`,
+    notes: `Open bugs: ${liveStats.openBugs}. Tasks due today: ${liveStats.todayTasks}. Overdue: ${liveStats.overdueTasks}.`,
+    blockers: projects.filter(p => p.blockers?.trim()).map(p => `${p.name}: ${p.blockers}`).join("\n") || "None.",
+    versions: [],
+  };
 
-${projects.map(p => {
-  const pct = getPct(p);
-  return `- ${p.name} (${p.status}, ${p.priority || "NORMAL"} priority, ${pct}% complete)${p.blockers?.trim() ? ` [BLOCKED: ${p.blockers}]` : ""}`;
-}).join("\n")}
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: newMessages, project: portfolioProject }),
+    });
 
-Total: ${total} projects. ${launched} launched, ${building} building, ${concept} concept. ${blocked} blocked. Average completion: ${avgPct}%. Open bugs: ${liveStats.openBugs}. Tasks due today: ${liveStats.todayTasks}. Overdue tasks: ${liveStats.overdueTasks}.
+    if (!res.ok || !res.body) throw new Error("Failed");
 
-Answer questions about the portfolio, suggest priorities, identify risks, and give actionable recommendations. Be concise and direct.`;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let assistantText = "";
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, projectContext: portfolioContext }),
+    setAiMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      assistantText += decoder.decode(value);
+      setAiMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", content: assistantText };
+        return updated;
       });
-      const data = await res.json();
-      const reply = data.message || "No response.";
-      setAiMessages(prev => [...prev, { role: "assistant", content: reply }]);
-      setAiInsight(reply.slice(0, 120) + (reply.length > 120 ? "..." : ""));
-    } catch {
-      setAiMessages(prev => [...prev, { role: "assistant", content: "Error contacting AI." }]);
     }
-    setAiLoading(false);
+
+    setAiInsight(assistantText.slice(0, 120) + (assistantText.length > 120 ? "..." : ""));
+  } catch {
+    setAiMessages(prev => [...prev, { role: "assistant", content: "⚠ Error contacting AI." }]);
   }
+
+  setAiLoading(false);
+}
 
   function Stat({ label, value, color = "var(--text)" }: { label: string; value: string | number; color?: string }) {
     return (
